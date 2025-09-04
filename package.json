@@ -1,0 +1,12 @@
+{
+  "name": "monitoreo-sonora",
+  "version": "1.0.0",
+  "description": "Panel de monitoreo de emergencias para Sonora, México",
+  "main": "public/index.html",
+  "scripts": {
+    "build": "echo 'No build step required for static site'"
+  },
+  "keywords": ["emergencias", "monitoreo", "sonora", "dashboard"],
+  "author": "Tu nombre",
+  "license": "MIT"
+}
