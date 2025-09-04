@@ -263,73 +263,36 @@
             // Obtener datos reales de emergencias
             async function fetchEmergencyData() {
                 try {
-                    // En una implementación real, aquí se conectaría con APIs oficiales
-                    // Como ejemplo, simulamos una respuesta con datos reales de diversas fuentes
-                    
-                    // Fuentes oficiales
-                    const officialSources = [
-                        {
-                            "id": "evt001", 
-                            "timestamp": new Date().toISOString(), 
-                            "source_type": "official", 
-                            "source_name": "Gobierno de Sonora", 
-                            "source_url": "https://www.sonora.gob.mx/emergencias",
-                            "topic": "inundaciones",
-                            "headline": "Alerta por inundaciones en el norte de Hermosillo", 
-                            "summary_120w": "El Gobierno del Estado reporta inundaciones en colonias del norte de Hermosillo. Se recomienda a la población evitar zonas de riesgo.",
-                            "public_health_risk": "high", 
-                            "change_flag": true,
-                            "lat": 29.1056,
-                            "lng": -110.9428,
-                            "area": "Hermosillo Norte",
-                            "antecedentes": "Las lluvias registradas la madrugada de este miércoles en la capital de Sonora, dejaron un acumulado de hasta 83 milímetros, provocando afectaciones principalmente en la zona norte de la ciudad.",
-                            "situacion_actual": "Inundaciones severas en colonias del norte de Hermosillo.",
-                            "acciones_realizadas": "Monitoreo constante por parte de Protección Civil.",
-                            "acciones_por_realizar": "Evaluación de daños y necesidades de la población afectada."
-                        }
-                    ];
-                    
-                    // Fuentes de redes sociales (verificadas)
-                    const socialSources = [
-                        {
-                            "id": "evt002", 
-                            "timestamp": new Date(Date.now() - 30*60000).toISOString(), 
-                            "source_type": "social", 
-                            "source_name": "Twitter/@PC_Sonora", 
-                            "source_url": "https://twitter.com/PC_Sonora/status/1830589817047220639",
-                            "social_platform": "twitter",
-                            "topic": "refugios",
-                            "headline": "Habilitados 5 refugios temporales en Hermosillo", 
-                            "summary_120w": "Protección Civil Sonora informa que se han habilitado refugios temporales en Centros Hábitat, Solidaridad 1, Minitas, Casa Galilea y Miguel Alemán.",
-                            "public_health_risk": "medium", 
-                            "change_flag": true,
-                            "lat": 29.0726,
-                            "lng": -110.9556,
-                            "area": "Centro de Hermosillo"
-                        },
-                        {
-                            "id": "evt003", 
-                            "timestamp": new Date(Date.now() - 60*60000).toISOString(), 
-                            "source_type": "social", 
-                            "source_name": "Facebook/@ClimaSonora", 
-                            "source_url": "https://www.facebook.com/ClimaSonora/posts/7328596097223412",
-                            "social_platform": "facebook",
-                            "topic": "clima",
-                            "headline": "Pronóstico de lluvias para las próximas horas", 
-                            "summary_120w": "Se esperan lluvias intensas durante las próximas 12 horas en el centro y norte del estado. Manténganse informados.",
-                            "public_health_risk": "medium", 
-                            "change_flag": false,
-                            "lat": 29.0892,
-                            "lng": -110.9613,
-                            "area": "Sonora Central"
-                        }
-                    ];
-                    
-                    // Combinar todas las fuentes
-                    return [...officialSources, ...socialSources];
+                    // Conectar con el backend real
+                    const response = await fetch('http://localhost:3001/api/events');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    console.log(`Datos recibidos del backend: ${data.length} eventos`);
+                    return data;
                 } catch (error) {
                     console.error("Error obteniendo datos de emergencia:", error);
-                    return [];
+                    
+                    // Datos de respaldo en caso de error del backend
+                    console.warn("Usando datos de respaldo debido a error del backend");
+                    return [
+                        {
+                            "id": "backup_001", 
+                            "timestamp": new Date().toISOString(), 
+                            "source_type": "official", 
+                            "source_name": "Sistema Local", 
+                            "source_url": "#",
+                            "topic": "sistema",
+                            "headline": "Error de conexión con fuentes de datos", 
+                            "summary_120w": "No se pudo conectar con el servidor backend. Verifique la conexión y que el servidor esté ejecutándose en el puerto 3001.",
+                            "public_health_risk": "medium", 
+                            "change_flag": true,
+                            "lat": 29.0892,
+                            "lng": -110.9613,
+                            "area": "Sistema"
+                        }
+                    ];
                 }
             }
             
