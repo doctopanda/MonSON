@@ -150,6 +150,9 @@
             <h1 class="text-4xl md:text-5xl font-bold text-blue-600">Panel de Monitoreo de Emergencias</h1>
             <p class="text-lg text-gray-600 mt-2">Situación Actual en Sonora, México</p>
             <p class="text-sm text-gray-500 mt-1">Última actualización: <span id="last-update-time">--:--:--</span></p>
+            <button id="reload-button" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">
+                🔄 Recargar Datos
+            </button>
         </header>
 
         <main class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -250,6 +253,8 @@
             const TIMEZONE = 'America/Hermosillo';
             let map = null;
             let markers = [];
+            let retryCount = 0;
+            const MAX_RETRIES = 3;
             
             // Inicializar el mapa
             function initMap() {
@@ -298,27 +303,93 @@
                 });
             }
             
+            // Función para verificar conexión con el backend
+            async function checkBackendConnection() {
+                try {
+                    const response = await fetch('https://monson.onrender.com/api/health', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const health = await response.json();
+                        console.log('Estado del backend:', health);
+                        return true;
+                    } else {
+                        console.error('Backend no responde correctamente');
+                        showErrorMessage('El servidor backend no está respondiendo. Intenta recargar la página.');
+                        return false;
+                    }
+                } catch (error) {
+                    console.error('Error de conexión con el backend:', error);
+                    showErrorMessage('No se puede conectar con el servidor backend. El servicio puede estar inactivo.');
+                    return false;
+                }
+            }
+            
+            // Función para obtener datos de ejemplo
+            function getFallbackData() {
+                return [
+                    {
+                        "id": "fallback_001", 
+                        "timestamp": new Date().toISOString(), 
+                        "source_type": "official", 
+                        "source_name": "Sistema de Monitoreo", 
+                        "source_url": "#",
+                        "topic": "sistema",
+                        "headline": "Modo de demostración activado", 
+                        "summary_120w": "El servidor backend no está respondiendo. Mostrando datos de ejemplo.",
+                        "public_health_risk": "medium", 
+                        "change_flag": true,
+                        "lat": 29.0892,
+                        "lng": -110.9613,
+                        "area": "Sistema"
+                    }
+                ];
+            }
+            
             // Obtener datos reales de emergencias desde el backend
             async function fetchEmergencyData() {
                 try {
-                    // URL del backend en Render
                     const backendUrl = 'https://monson.onrender.com/api/events';
                     
-                    const response = await fetch(backendUrl);
+                    const response = await fetch(backendUrl, {
+                        headers: {
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache',
+                            'Expires': '0'
+                        }
+                    });
+                    
                     if (!response.ok) {
                         throw new Error(`Error HTTP: ${response.status}`);
                     }
+                    
                     const data = await response.json();
                     console.log(`Datos recibidos del backend: ${data.length} eventos`);
+                    
+                    // Reiniciar contador de reintentos si la solicitud es exitosa
+                    retryCount = 0;
                     return data;
                 } catch (error) {
                     console.error("Error obteniendo datos de emergencia:", error);
                     
-                    // Mostrar mensaje de error
-                    showErrorMessage("No se pudieron cargar los datos en tiempo real. Verifica la conexión al backend.");
-                    
-                    // Devolver array vacío en lugar de datos simulados
-                    return [];
+                    // Intentar nuevamente si no hemos excedido el máximo de reintentos
+                    if (retryCount < MAX_RETRIES) {
+                        retryCount++;
+                        console.log(`Reintentando (${retryCount}/${MAX_RETRIES})...`);
+                        showErrorMessage(`Reintentando conexión con el servidor (${retryCount}/${MAX_RETRIES})...`);
+                        
+                        // Esperar 2 segundos antes de reintentar
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        return await fetchEmergencyData();
+                    } else {
+                        // Mostrar mensaje de error después de agotar los reintentos
+                        showErrorMessage("No se pudieron cargar los datos. El servidor puede estar inactivo.");
+                        return getFallbackData();
+                    }
                 }
             }
             
@@ -357,6 +428,7 @@
             const modalBody = document.getElementById('modal-body');
             const exportDocBtn = document.getElementById('export-doc');
             const exportPdfBtn = document.getElementById('export-pdf');
+            const reloadButton = document.getElementById('reload-button');
 
             // --- Funciones de Renderizado ---
             function formatTime(isoString) {
@@ -508,9 +580,4 @@
                             body { font-family: Arial, sans-serif; margin: 0 auto; padding: 20px; max-width: 800px; }
                             h1 { color: #003366; font-size: 1.5rem; margin-bottom: 0; text-align: center; }
                             .header { text-align: center; margin-bottom: 20px; }
-                            .date { font-size: 0.8rem; color: #6b7280; }
-                            hr { border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }
-                            h2 { font-size: 1.2rem; font-weight: bold; color: #1f2937; }
-                            h3 { font-size: 1.1rem; font-weight: bold; color: #1f2937; margin-top: 20px; }
-                            p { font-size: 1rem; color: #374151; margin-top: 5px; }
-                            .footer { margin-top: 30px; font-size: 0.8rem;
+                            .date { font-size: 0.8rem; color:
