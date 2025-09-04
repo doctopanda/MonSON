@@ -1,11 +1,14 @@
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
-const NodeCache = require('node-cache');
-require('dotenv').config();
+import express from "express";
+import cors from "cors";
+import axios from "axios";
+import NodeCache from "node-cache";
+import dotenv from "dotenv";
+
+// Configurar variables de entorno
+dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3001;
 const cache = new NodeCache({ stdTTL: 300 }); // Cache de 5 minutos
 
 // Middleware
@@ -21,8 +24,7 @@ const OFFICIAL_SOURCES = {
   twitter: {
     pc_sonora: 'PC_Sonora',
     clima_sonora: 'ClimaSonora',
-    gobierno_sonora: 'GobiernoSonora',
-    ayto_hermosillo: 'AytoHermosillo'
+    gobierno_sonora: 'GobiernoSonora'
   },
   apis: {
     proteccion_civil: 'https://api.sonora.gob.mx/emergencias',
@@ -33,7 +35,7 @@ const OFFICIAL_SOURCES = {
 // Función para obtener datos de Twitter
 async function fetchTwitterData() {
   if (!TWITTER_BEARER_TOKEN) {
-    console.warn('Twitter Bearer Token no configurado');
+    console.warn('Twitter Bearer Token no configurado. Omitiendo datos de Twitter.');
     return [];
   }
 
@@ -42,7 +44,7 @@ async function fetchTwitterData() {
     const query = accounts.map(acc => `from:${acc}`).join(' OR ');
     
     const response = await axios.get(
-      `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(query)}&max_results=20&tweet.fields=created_at,author_id,text,public_metrics`,
+      `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(query)}&max_results=20&tweet.fields=created_at,author_id,text`,
       {
         headers: {
           'Authorization': `Bearer ${TWITTER_BEARER_TOKEN}`
@@ -57,111 +59,66 @@ async function fetchTwitterData() {
   }
 }
 
-// Función para obtener noticias de emergencias
-async function fetchNewsData() {
-  if (!NEWS_API_KEY) {
-    console.warn('News API Key no configurado');
-    return [];
-  }
-
-  try {
-    const query = 'emergencia OR inundación OR incendio OR sismo Sonora Hermosillo';
-    const response = await axios.get(
-      `https://newsapi.org/v2/everything?q=${encodeURIComponent(query)}&language=es&sortBy=publishedAt&pageSize=10`,
-      {
-        headers: {
-          'X-API-Key': NEWS_API_KEY
-        }
-      }
-    );
-    
-    return response.data.articles || [];
-  } catch (error) {
-    console.error('Error fetching news data:', error.message);
-    return [];
-  }
-}
-
-// Función para obtener datos de APIs oficiales (simuladas por ahora)
+// Función para obtener datos de APIs oficiales
 async function fetchOfficialAPIData() {
   try {
-    // En un entorno real, estas APIs requerirían autorización especial
-    // Por ahora, simulamos algunos datos oficiales típicos
+    // Simulamos datos de API ya que las URLs reales pueden requerir autenticación
+    // En producción, reemplazar con llamadas reales a las APIs
+    
     const mockOfficialData = [
       {
-        id: 'pc_001',
-        fecha: new Date().toISOString(),
-        tipo: 'inundaciones',
-        titulo: 'Monitoreo de niveles de agua en arroyos',
-        descripcion: 'Protección Civil mantiene vigilancia constante en los principales arroyos de Hermosillo debido a las precipitaciones registradas.',
-        nivel: 'medio',
-        zona_afectada: 'Hermosillo Centro',
-        ubicacion: { lat: 29.0892, lng: -110.9613 },
-        enlace: 'https://www.sonora.gob.mx/proteccion-civil'
+        id: "pc_001",
+        timestamp: new Date().toISOString(),
+        source_type: "official",
+        source_name: "Protección Civil Sonora",
+        source_url: "https://sonora.gob.mx",
+        topic: "clima",
+        headline: "Alerta por lluvias intensas en el norte de Sonora",
+        summary_120w: "Se emite alerta por lluvias intensas en los municipios del norte de Sonora. Se recomienda precaución.",
+        public_health_risk: "high",
+        change_flag: true,
+        lat: 29.1056,
+        lng: -110.9428,
+        area: "Norte de Sonora",
+        antecedentes: "Las condiciones meteorológicas indican la formación de tormentas intensas.",
+        situacion_actual: "Lluvias intensas en los municipios del norte con posibilidad de inundaciones.",
+        acciones_realizadas: "Monitoreo constante y coordinación con municipios afectados.",
+        acciones_por_realizar: "Evaluación de daños y necesidades de la población afectada."
+      },
+      {
+        id: "clima_001",
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // Hace 2 horas
+        source_type: "official",
+        source_name: "Servicio Meteorológico Sonora",
+        source_url: "https://sonora.gob.mx",
+        topic: "clima",
+        headline: "Pronóstico de temperaturas elevadas para el fin de semana",
+        summary_120w: "Se esperan temperaturas superiores a los 40°C en el sur del estado durante el fin de semana.",
+        public_health_risk: "medium",
+        change_flag: false,
+        lat: 28.3890,
+        lng: -109.5000,
+        area: "Sur de Sonora"
       }
     ];
-
-    return processAPIData({ emergencias: mockOfficialData }, 'proteccion_civil');
+    
+    return mockOfficialData;
   } catch (error) {
     console.error('Error fetching official API data:', error.message);
     return [];
   }
 }
 
-// Procesar datos de API oficial
-function processAPIData(data, source) {
-  const events = [];
-  
-  if (source === 'proteccion_civil' && data.emergencias) {
-    data.emergencias.forEach(emergencia => {
-      events.push({
-        id: `pc_${emergencia.id}`,
-        timestamp: emergencia.fecha,
-        source_type: 'official',
-        source_name: 'Protección Civil Sonora',
-        source_url: emergencia.enlace || OFFICIAL_SOURCES.apis.proteccion_civil,
-        topic: emergencia.tipo,
-        headline: emergencia.titulo,
-        summary_120w: emergencia.descripcion,
-        public_health_risk: calcularNivelRiesgo(emergencia.nivel),
-        change_flag: emergencia.actualizacion || false,
-        lat: emergencia.ubicacion?.lat,
-        lng: emergencia.ubicacion?.lng,
-        area: emergencia.zona_afectada,
-        antecedentes: `Evento reportado por ${source} el ${new Date(emergencia.fecha).toLocaleDateString('es-MX')}`,
-        situacion_actual: emergencia.descripcion,
-        acciones_realizadas: 'Monitoreo constante por parte de las autoridades competentes',
-        acciones_por_realizar: 'Continuar vigilancia y evaluación de la situación'
-      });
-    });
-  }
-  
-  return events;
-}
-
-// Función para calcular nivel de riesgo
-function calcularNivelRiesgo(nivel) {
-  const niveles = {
-    'bajo': 'low',
-    'medio': 'medium',
-    'alto': 'high',
-    'extremo': 'high',
-    'crítico': 'high'
-  };
-  
-  return niveles[nivel?.toLowerCase()] || 'medium';
-}
-
 // Procesar datos de Twitter
 function processTwitterData(tweets) {
   return tweets.map(tweet => {
+    // Análisis básico del tweet para determinar riesgo
     const text = tweet.text.toLowerCase();
     let risk = 'medium';
     
-    // Análisis de riesgo basado en palabras clave
-    if (text.includes('emergencia') || text.includes('evacuación') || text.includes('alerta roja') || text.includes('peligro')) {
+    if (text.includes('emergencia') || text.includes('evacuación') || text.includes('alerta')) {
       risk = 'high';
-    } else if (text.includes('precaución') || text.includes('lluvia') || text.includes('viento') || text.includes('alerta')) {
+    } else if (text.includes('precaución') || text.includes('lluvia') || text.includes('viento')) {
       risk = 'medium';
     } else {
       risk = 'low';
@@ -171,80 +128,28 @@ function processTwitterData(tweets) {
       id: `tw_${tweet.id}`,
       timestamp: tweet.created_at,
       source_type: 'social',
-      source_name: `Twitter/@${getTwitterUsername(tweet.author_id)}`,
-      source_url: `https://twitter.com/i/status/${tweet.id}`,
+      source_name: `Twitter/@${tweet.author_id}`,
+      source_url: `https://twitter.com/${tweet.author_id}/status/${tweet.id}`,
       social_platform: 'twitter',
       topic: extractTopicFromTweet(tweet.text),
-      headline: tweet.text.length > 80 ? tweet.text.substring(0, 77) + '...' : tweet.text,
+      headline: tweet.text.length > 50 ? tweet.text.substring(0, 47) + '...' : tweet.text,
       summary_120w: tweet.text,
       public_health_risk: risk,
-      change_flag: text.includes('actualización') || text.includes('nuevo') || text.includes('urgente'),
-      area: extractLocationFromTweet(tweet.text),
-      lat: getCoordinatesForLocation(extractLocationFromTweet(tweet.text))?.lat,
-      lng: getCoordinatesForLocation(extractLocationFromTweet(tweet.text))?.lng
+      change_flag: text.includes('actualización') || text.includes('nuevo'),
+      area: extractLocationFromTweet(tweet.text)
     };
   });
 }
 
-// Procesar datos de noticias
-function processNewsData(articles) {
-  return articles.map(article => {
-    const text = (article.title + ' ' + article.description).toLowerCase();
-    let risk = 'medium';
-    
-    if (text.includes('emergencia') || text.includes('evacuación') || text.includes('desastre')) {
-      risk = 'high';
-    } else if (text.includes('alerta') || text.includes('daños') || text.includes('afectados')) {
-      risk = 'medium';
-    } else {
-      risk = 'low';
-    }
-    
-    return {
-      id: `news_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: article.publishedAt,
-      source_type: 'media',
-      source_name: article.source.name,
-      source_url: article.url,
-      topic: extractTopicFromText(article.title + ' ' + article.description),
-      headline: article.title,
-      summary_120w: article.description || article.title,
-      public_health_risk: risk,
-      change_flag: false,
-      area: extractLocationFromText(article.title + ' ' + article.description),
-      lat: getCoordinatesForLocation(extractLocationFromText(article.title + ' ' + article.description))?.lat,
-      lng: getCoordinatesForLocation(extractLocationFromText(article.title + ' ' + article.description))?.lng
-    };
-  });
-}
-
-// Función auxiliar para obtener username de Twitter
-function getTwitterUsername(authorId) {
-  const userMap = {
-    [OFFICIAL_SOURCES.twitter.pc_sonora]: 'PC_Sonora',
-    [OFFICIAL_SOURCES.twitter.clima_sonora]: 'ClimaSonora',
-    [OFFICIAL_SOURCES.twitter.gobierno_sonora]: 'GobiernoSonora',
-    [OFFICIAL_SOURCES.twitter.ayto_hermosillo]: 'AytoHermosillo'
-  };
-  
-  return userMap[authorId] || `Usuario_${authorId}`;
-}
-
-// Función auxiliar para extraer tema de texto
+// Función auxiliar para extraer tema de tweet
 function extractTopicFromTweet(text) {
-  return extractTopicFromText(text);
-}
-
-function extractTopicFromText(text) {
   const topics = {
-    'inundación|inundaciones|lluvia|lluvias|agua|arroyo': 'inundaciones',
-    'incendio|fuego|quemadura|humo': 'incendios',
+    'inundación|inundaciones|lluvia|lluvias': 'inundaciones',
+    'incendio|fuego|quemadura': 'incendios',
     'sismo|temblor|terremoto': 'sismos',
-    'accidente|choque|colisión|tráfico': 'accidentes',
-    'evacuación|desalojo|refugio': 'evacuaciones',
-    'alerta|emergencia|peligro|urgente': 'alertas',
-    'salud|hospital|médico|sanitario': 'salud',
-    'infraestructura|carretera|puente|servicio': 'infraestructura'
+    'accidente|choque|colisión': 'accidentes',
+    'evacuación|desalojo': 'evacuaciones',
+    'alerta|emergencia|peligro': 'alertas'
   };
   
   for (const [pattern, topic] of Object.entries(topics)) {
@@ -256,12 +161,8 @@ function extractTopicFromText(text) {
   return 'general';
 }
 
-// Función auxiliar para extraer ubicación
+// Función auxiliar para extraer ubicación de tweet
 function extractLocationFromTweet(text) {
-  return extractLocationFromText(text);
-}
-
-function extractLocationFromText(text) {
   const locations = {
     'hermosillo': 'Hermosillo',
     'nogales': 'Nogales',
@@ -270,9 +171,7 @@ function extractLocationFromText(text) {
     'guaymas|san carlos': 'Guaymas',
     'sonoyta': 'Sonoyta',
     'puerto peñasco': 'Puerto Peñasco',
-    'água prieta': 'Água Prieta',
-    'caborca': 'Caborca',
-    'cananea': 'Cananea'
+    'água prieta': 'Água Prieta'
   };
   
   for (const [pattern, location] of Object.entries(locations)) {
@@ -284,25 +183,20 @@ function extractLocationFromText(text) {
   return 'Sonora';
 }
 
-// Función para obtener coordenadas aproximadas por ubicación
-function getCoordinatesForLocation(location) {
-  const coordinates = {
-    'Hermosillo': { lat: 29.0892, lng: -110.9613 },
-    'Nogales': { lat: 31.3404, lng: -110.9342 },
-    'Ciudad Obregón': { lat: 27.4827, lng: -109.9309 },
-    'Navojoa': { lat: 27.0739, lng: -109.4425 },
-    'Guaymas': { lat: 27.9202, lng: -110.9031 },
-    'Puerto Peñasco': { lat: 31.3135, lng: -113.5336 },
-    'Caborca': { lat: 30.7186, lng: -112.1590 },
-    'Cananea': { lat: 30.9503, lng: -110.2982 },
-    'Sonora': { lat: 29.2972, lng: -110.3309 }
+// Función para calcular nivel de riesgo
+function calcularNivelRiesgo(nivel) {
+  const niveles = {
+    'bajo': 'low',
+    'medio': 'medium',
+    'alto': 'high',
+    'extremo': 'high'
   };
   
-  return coordinates[location] || coordinates['Sonora'];
+  return niveles[nivel.toLowerCase()] || 'medium';
 }
 
 // Endpoint principal para obtener eventos
-app.get('/api/events', async (req, res) => {
+app.get("/api/events", async (req, res) => {
   try {
     // Verificar si hay datos en caché
     const cachedData = cache.get('emergency_events');
@@ -310,35 +204,22 @@ app.get('/api/events', async (req, res) => {
       return res.json(cachedData);
     }
     
-    console.log('Obteniendo datos de fuentes externas...');
-    
     // Obtener datos de todas las fuentes
-    const [twitterData, newsData, officialData] = await Promise.all([
+    const [twitterData, officialData] = await Promise.all([
       fetchTwitterData(),
-      fetchNewsData(),
       fetchOfficialAPIData()
     ]);
     
-    console.log(`Datos obtenidos - Twitter: ${twitterData.length}, Noticias: ${newsData.length}, Oficial: ${officialData.length}`);
-    
     // Combinar y procesar todos los datos
-    const allEvents = [
-      ...officialData,
-      ...processTwitterData(twitterData),
-      ...processNewsData(newsData)
-    ];
+    const allEvents = [...officialData, ...processTwitterData(twitterData)];
     
     // Ordenar por fecha (más recientes primero)
     allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     
-    // Limitar a los últimos 50 eventos
-    const limitedEvents = allEvents.slice(0, 50);
-    
     // Guardar en caché
-    cache.set('emergency_events', limitedEvents);
+    cache.set('emergency_events', allEvents);
     
-    console.log(`Enviando ${limitedEvents.length} eventos al frontend`);
-    res.json(limitedEvents);
+    res.json(allEvents);
   } catch (error) {
     console.error('Error fetching events:', error);
     res.status(500).json({ error: 'Error al obtener datos de emergencia' });
@@ -346,8 +227,9 @@ app.get('/api/events', async (req, res) => {
 });
 
 // Endpoint para obtener resumen ejecutivo
-app.get('/api/summary', async (req, res) => {
+app.get("/api/summary", async (req, res) => {
   try {
+    // Obtener eventos
     const events = await fetchEvents();
     
     // Calcular el riesgo más alto
@@ -370,8 +252,7 @@ app.get('/api/summary', async (req, res) => {
       risk_level: highestRisk,
       summary: summaryText[highestRisk],
       total_events: events.length,
-      critical_alerts: events.filter(e => e.public_health_risk === 'high').length,
-      last_update: new Date().toISOString()
+      critical_alerts: events.filter(e => e.public_health_risk === 'high').length
     });
   } catch (error) {
     console.error('Error generating summary:', error);
@@ -379,30 +260,23 @@ app.get('/api/summary', async (req, res) => {
   }
 });
 
-// Endpoint para obtener estadísticas
-app.get('/api/stats', async (req, res) => {
+// Endpoint para estadísticas
+app.get("/api/stats", async (req, res) => {
   try {
     const events = await fetchEvents();
     
     const stats = {
-      total_events: events.length,
-      by_source: {
+      total: events.length,
+      by_type: {
         official: events.filter(e => e.source_type === 'official').length,
-        social: events.filter(e => e.source_type === 'social').length,
-        media: events.filter(e => e.source_type === 'media').length
+        social: events.filter(e => e.source_type === 'social').length
       },
       by_risk: {
         high: events.filter(e => e.public_health_risk === 'high').length,
         medium: events.filter(e => e.public_health_risk === 'medium').length,
         low: events.filter(e => e.public_health_risk === 'low').length
-      },
-      by_topic: {}
+      }
     };
-    
-    // Contar por temas
-    events.forEach(event => {
-      stats.by_topic[event.topic] = (stats.by_topic[event.topic] || 0) + 1;
-    });
     
     res.json(stats);
   } catch (error) {
@@ -411,13 +285,27 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-// Endpoint de salud del servidor
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
+// Endpoint de salud
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    message: "Backend MonSON en línea 🚀",
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    cache_keys: cache.keys().length
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Ruta de prueba
+app.get("/", (req, res) => {
+  res.json({ 
+    status: "ok", 
+    message: "Backend MonSON en línea 🚀",
+    endpoints: {
+      events: "/api/events",
+      summary: "/api/summary",
+      stats: "/api/stats",
+      health: "/api/health"
+    }
   });
 });
 
@@ -428,25 +316,18 @@ async function fetchEvents() {
     return cachedData;
   }
   
-  const [twitterData, newsData, officialData] = await Promise.all([
+  const [twitterData, officialData] = await Promise.all([
     fetchTwitterData(),
-    fetchNewsData(),
     fetchOfficialAPIData()
   ]);
   
-  const allEvents = [
-    ...officialData,
-    ...processTwitterData(twitterData),
-    ...processNewsData(newsData)
-  ];
-  
-  return allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  return [...officialData, ...processTwitterData(twitterData)];
 }
 
 // Iniciar servidor
-app.listen(port, () => {
-  console.log(`🚨 Servidor de monitoreo de emergencias ejecutándose en puerto ${port}`);
-  console.log(`📊 Panel disponible en: http://localhost:${port}`);
+app.listen(PORT, () => {
+  console.log(`🚨 Servidor de monitoreo de emergencias ejecutándose en puerto ${PORT}`);
+  console.log(`📊 Panel disponible en: http://localhost:${PORT}`);
   console.log(`🔗 API endpoints:`);
   console.log(`   - GET /api/events - Obtener eventos de emergencia`);
   console.log(`   - GET /api/summary - Obtener resumen ejecutivo`);
@@ -454,4 +335,4 @@ app.listen(port, () => {
   console.log(`   - GET /api/health - Estado del servidor`);
 });
 
-module.exports = app;
+export default app;
