@@ -110,6 +110,37 @@
         .leaflet-popup-content-wrapper {
             border-radius: 8px;
         }
+
+        /* Estilos para mensajes de error */
+        .error-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #f87171;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            z-index: 1000;
+            max-width: 300px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+
+        /* Estilos para loading */
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="antialiased text-gray-800">
@@ -137,12 +168,12 @@
                         <!-- Resumen Ejecutivo -->
                         <div class="flex-1">
                             <h3 class="font-semibold text-gray-700 mb-2">Resumen Ejecutivo</h2>
-                            <p id="executive-summary" class="text-gray-600">Situación crítica con impacto severo. Hay evacuaciones activas y riesgos significativos para la salud pública. Se requiere máxima precaución y atención a las directivas de las autoridades.</p>
+                            <p id="executive-summary" class="text-gray-600">Cargando datos en tiempo real...</p>
                         </div>
                     </div>
                      <div class="mt-6 text-right">
                         <button id="alert-button" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
-                            Ver Alertas Críticas (<span id="alert-count">3</span>)
+                            Ver Alertas Críticas (<span id="alert-count">0</span>)
                         </button>
                     </div>
                 </section>
@@ -160,7 +191,10 @@
                          </div>
                     </div>
                     <div id="timeline-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                        <!-- Los eventos se insertarán aquí dinámicamente -->
+                        <div class="text-center py-8">
+                            <div class="loading-spinner"></div>
+                            <p class="text-gray-500 mt-2">Cargando eventos...</p>
+                        </div>
                     </div>
                 </section>
             </div>
@@ -171,7 +205,9 @@
                 <section class="card p-6">
                      <h2 class="text-xl font-bold border-b-2 border-gray-100 pb-2 mb-3">Últimas Novedades Verificadas</h2>
                      <div id="ticker-list" class="space-y-3 max-h-48 overflow-y-auto pr-2 text-sm">
-                        <!-- El ticker se llenará aquí -->
+                        <div class="text-center py-4">
+                            <p class="text-gray-500">Cargando novedades...</p>
+                        </div>
                      </div>
                 </section>
 
@@ -202,7 +238,9 @@
                 <button id="modal-close" class="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
             </div>
             <div id="modal-body" class="overflow-y-auto max-h-[calc(90vh-8rem)] space-y-4">
-                <!-- Contenido de las alertas se inserta aquí -->
+                <div class="text-center py-8">
+                    <p class="text-gray-500">Cargando alertas...</p>
+                </div>
             </div>
         </div>
     </div>
@@ -260,13 +298,15 @@
                 });
             }
             
-            // Obtener datos reales de emergencias
+            // Obtener datos reales de emergencias desde el backend
             async function fetchEmergencyData() {
                 try {
-                    // Conectar con el backend real
-                    const response = await fetch('http://localhost:3001/api/events');
+                    // URL del backend en Render
+                    const backendUrl = 'https://monson.onrender.com/api/events';
+                    
+                    const response = await fetch(backendUrl);
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        throw new Error(`Error HTTP: ${response.status}`);
                     }
                     const data = await response.json();
                     console.log(`Datos recibidos del backend: ${data.length} eventos`);
@@ -274,28 +314,34 @@
                 } catch (error) {
                     console.error("Error obteniendo datos de emergencia:", error);
                     
-                    // Datos de respaldo en caso de error del backend
-                    console.warn("Usando datos de respaldo debido a error del backend");
-                    return [
-                        {
-                            "id": "backup_001", 
-                            "timestamp": new Date().toISOString(), 
-                            "source_type": "official", 
-                            "source_name": "Sistema Local", 
-                            "source_url": "#",
-                            "topic": "sistema",
-                            "headline": "Error de conexión con fuentes de datos", 
-                            "summary_120w": "No se pudo conectar con el servidor backend. Verifique la conexión y que el servidor esté ejecutándose en el puerto 3001.",
-                            "public_health_risk": "medium", 
-                            "change_flag": true,
-                            "lat": 29.0892,
-                            "lng": -110.9613,
-                            "area": "Sistema"
-                        }
-                    ];
+                    // Mostrar mensaje de error
+                    showErrorMessage("No se pudieron cargar los datos en tiempo real. Verifica la conexión al backend.");
+                    
+                    // Devolver array vacío en lugar de datos simulados
+                    return [];
                 }
             }
             
+            // Función para mostrar mensajes de error
+            function showErrorMessage(message) {
+                // Crear o mostrar un elemento de error en la interfaz
+                let errorElement = document.getElementById('error-message');
+                if (!errorElement) {
+                    errorElement = document.createElement('div');
+                    errorElement.id = 'error-message';
+                    errorElement.className = 'error-message';
+                    document.body.appendChild(errorElement);
+                }
+                
+                errorElement.textContent = message;
+                errorElement.style.display = 'block';
+                
+                // Ocultar después de 5 segundos
+                setTimeout(() => {
+                    errorElement.style.display = 'none';
+                }, 5000);
+            }
+
             // --- Elementos del DOM ---
             const lastUpdateTime = document.getElementById('last-update-time');
             const riskLight = document.getElementById('risk-light');
@@ -467,252 +513,4 @@
                             h2 { font-size: 1.2rem; font-weight: bold; color: #1f2937; }
                             h3 { font-size: 1.1rem; font-weight: bold; color: #1f2937; margin-top: 20px; }
                             p { font-size: 1rem; color: #374151; margin-top: 5px; }
-                            .footer { margin-top: 30px; font-size: 0.8rem; color: #9ca3af; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h1>Reporte de Vigilancia Basada en Eventos (VBE)</h1>
-                            <p class="date">Hermosillo, Sonora a ${new Date(event.timestamp).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                        </div>
-                        <hr>
-                        <h2>Notificación: ${event.headline}</h2>
-                        <p><strong>Área que emite:</strong> Monitoreo Estatal</p>
-                        <h3>Antecedentes</h3>
-                        <p>${event.antecedentes || "Información no disponible"}</p>
-                        <h3>Descripción de la situación actual</h3>
-                        <p>${event.situacion_actual || "Información no disponible"}</p>
-                        <h3>Acciones realizadas</h3>
-                        <p>${event.acciones_realizadas || "Información no disponible"}</p>
-                        <h3>Acciones por realizar</h3>
-                        <p>${event.acciones_por_realizar || "Información no disponible"}</p>
-                        <div class="footer">
-                            <p>Fuente: <a href="${event.source_url}">${event.source_name}</a></p>
-                            <p>Generado el: ${new Date().toLocaleDateString('es-MX')}</p>
-                        </div>
-                    </body>
-                    </html>
-                `;
-                
-                return reportContent;
-            }
-            
-            // Generar reporte en formato PDF
-            function generatePdfReport(event) {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                let y = 15;
-                
-                // Título
-                doc.setFontSize(16);
-                doc.setTextColor(0, 51, 102);
-                doc.text("Reporte de Vigilancia Basada en Eventos (VBE)", 105, y, { align: 'center' });
-                y += 10;
-                
-                // Fecha
-                doc.setFontSize(10);
-                doc.setTextColor(107, 114, 128);
-                doc.text(`Hermosillo, Sonora a ${new Date(event.timestamp).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}`, 105, y, { align: 'center' });
-                y += 10;
-                
-                // Línea separadora
-                doc.setDrawColor(229, 231, 235);
-                doc.line(20, y, 190, y);
-                y += 10;
-                
-                // Notificación
-                doc.setFontSize(14);
-                doc.setTextColor(31, 41, 55);
-                doc.text(`Notificación: ${event.headline}`, 20, y);
-                y += 10;
-                
-                // Área que emite
-                doc.setFontSize(12);
-                doc.setTextColor(55, 65, 81);
-                doc.text(`Área que emite: Monitoreo Estatal`, 20, y);
-                y += 15;
-                
-                // Antecedentes
-                doc.setFontSize(12);
-                doc.setTextColor(31, 41, 55);
-                doc.text("Antecedentes:", 20, y);
-                y += 8;
-                
-                doc.setFontSize(11);
-                const antecedentes = event.antecedentes || "Información no disponible";
-                const splitAntecedentes = doc.splitTextToSize(antecedentes, 170);
-                doc.text(splitAntecedentes, 20, y);
-                y += (splitAntecedentes.length * 5) + 10;
-                
-                // Situación actual
-                doc.setFontSize(12);
-                doc.setTextColor(31, 41, 55);
-                doc.text("Descripción de la situación actual:", 20, y);
-                y += 8;
-                
-                doc.setFontSize(11);
-                const situacion = event.situacion_actual || "Información no disponible";
-                const splitSituacion = doc.splitTextToSize(situacion, 170);
-                doc.text(splitSituacion, 20, y);
-                y += (splitSituacion.length * 5) + 10;
-                
-                // Acciones realizadas
-                doc.setFontSize(12);
-                doc.setTextColor(31, 41, 55);
-                doc.text("Acciones realizadas:", 20, y);
-                y += 8;
-                
-                doc.setFontSize(11);
-                const accionesRealizadas = event.acciones_realizadas || "Información no disponible";
-                const splitAcciones = doc.splitTextToSize(accionesRealizadas, 170);
-                doc.text(splitAcciones, 20, y);
-                y += (splitAcciones.length * 5) + 10;
-                
-                // Acciones por realizar
-                doc.setFontSize(12);
-                doc.setTextColor(31, 41, 55);
-                doc.text("Acciones por realizar:", 20, y);
-                y += 8;
-                
-                doc.setFontSize(11);
-                const accionesPendientes = event.acciones_por_realizar || "Información no disponible";
-                const splitPendientes = doc.splitTextToSize(accionesPendientes, 170);
-                doc.text(splitPendientes, 20, y);
-                y += (splitPendientes.length * 5) + 15;
-                
-                // Fuente
-                doc.setFontSize(10);
-                doc.setTextColor(107, 114, 128);
-                doc.text(`Fuente: ${event.source_name} (${event.source_url})`, 20, y);
-                y += 5;
-                
-                doc.text(`Generado el: ${new Date().toLocaleDateString('es-MX')}`, 20, y);
-                
-                return doc;
-            }
-            
-            function downloadFile(filename, content, mimeType) {
-                const blob = new Blob([content], { type: mimeType });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-            
-            function generateReport(event) {
-                // Generar reporte DOC
-                const docContent = generateDocReport(event);
-                const blob = new Blob([docContent], { type: 'application/msword' });
-                const url = URL.createObjectURL(blob);
-                
-                // Abrir en nueva pestaña para que el usuario decida si guardar
-                window.open(url, '_blank');
-            }
-
-            // --- Event Listeners ---
-            filterButtonsContainer.addEventListener('click', (e) => {
-                if (e.target.classList.contains('filter-button')) {
-                    filterButtonsContainer.querySelector('.active').classList.remove('active');
-                    e.target.classList.add('active');
-                    currentFilter = e.target.dataset.filter;
-                    updateDashboard();
-                }
-            });
-
-            alertButton.addEventListener('click', () => {
-                updateDashboard().then(() => {
-                    renderAlerts(eventData);
-                    alertsModal.classList.remove('hidden');
-                    alertsModal.classList.add('flex');
-                });
-            });
-            
-            modalClose.addEventListener('click', () => alertsModal.classList.add('hidden'));
-            
-            // Cerrar modal al hacer clic fuera del contenido
-            alertsModal.addEventListener('click', (e) => {
-                if (e.target === alertsModal) {
-                    alertsModal.classList.add('hidden');
-                }
-            });
-            
-            exportDocBtn.addEventListener('click', () => {
-                // Exportar todos los eventos en formato DOC
-                const docContent = generateDocReport({
-                    timestamp: new Date().toISOString(),
-                    headline: "Reporte Completo de Emergencias en Sonora",
-                    antecedentes: "Resumen de todas las emergencias reportadas en el estado de Sonora.",
-                    situacion_actual: "Situación actual basada en los últimos reportes recibidos.",
-                    acciones_realizadas: "Acciones realizadas por las autoridades correspondientes.",
-                    acciones_por_realizar: "Acciones pendientes por implementar.",
-                    source_name: "Sistema de Monitoreo de Emergencias de Sonora",
-                    source_url: window.location.href
-                });
-                
-                downloadFile('reporte_emergencias_sonora.doc', docContent, 'application/msword');
-            });
-
-            exportPdfBtn.addEventListener('click', () => {
-                // Exportar todos los eventos en formato PDF
-                const doc = generatePdfReport({
-                    timestamp: new Date().toISOString(),
-                    headline: "Reporte Completo de Emergencias en Sonora",
-                    antecedentes: "Resumen de todas las emergencias reportadas en el estado de Sonora.",
-                    situacion_actual: "Situación actual basada en los últimos reportes recibidos.",
-                    acciones_realizadas: "Acciones realizadas por las autoridades correspondientes.",
-                    acciones_por_realizar: "Acciones pendientes por implementar.",
-                    source_name: "Sistema de Monitoreo de Emergencias de Sonora",
-                    source_url: window.location.href
-                });
-                
-                doc.save('reporte_emergencias_sonora.pdf');
-            });
-
-            // --- Actualización de datos ---
-            let eventData = [];
-            let currentFilter = 'all';
-            
-            async function updateDashboard() {
-                try {
-                    // Obtener datos actualizados
-                    eventData = await fetchEmergencyData();
-                    
-                    // Actualizar la hora de última actualización
-                    const now = new Date();
-                    const options = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: TIMEZONE };
-                    lastUpdateTime.textContent = now.toLocaleTimeString('es-MX', options);
-                    
-                    // Renderizar componentes
-                    renderTimeline(eventData, currentFilter);
-                    renderSummary(eventData);
-                    renderTicker(eventData);
-                    
-                    // Actualizar mapa
-                    addMarkersToMap(eventData);
-                    
-                    console.log("Datos actualizados correctamente");
-                } catch (error) {
-                    console.error("Error actualizando datos:", error);
-                }
-            }
-
-            // --- Inicialización ---
-            function init() {
-                // Inicializar mapa
-                initMap();
-                
-                // Cargar datos iniciales
-                updateDashboard();
-                
-                // Configurar actualización automática cada 90 segundos
-                setInterval(updateDashboard, 90000);
-            }
-
-            init();
-        });
-    </script>
-</body>
-</html>
+                            .footer { margin-top: 30px; font-size: 0.8rem;
