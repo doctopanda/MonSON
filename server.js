@@ -1,34 +1,74 @@
-const express = require("express");
-const cors = require("cors");
-const axios = require("axios");
-const NodeCache = require("node-cache");
-require("dotenv").config();
+import express from "express";
+import axios from "axios";
+import cors from "cors";
+import Parser from "rss-parser";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const cache = new NodeCache({ stdTTL: 300 }); // Cache de 5 minutos
 
-// Middleware
 app.use(cors());
-app.use(express.json());
 
-// Claves de API (configurar en Render → Environment)
-const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN;
-const NEWS_API_KEY = process.env.NEWS_API_KEY;
+// ============================
+// 🔑 Configuración de APIs
+// ============================
+const TWITTER_BEARER_TOKEN = process.env.TWITTER_BEARER_TOKEN || null;
+const NEWS_API_KEY = process.env.NEWS_API_KEY || "e607a631a3de4743a7c91876ab5e37b4";
+const rssParser = new Parser();
 
-// Fuentes oficiales de Sonora (simuladas)
+// ============================
+// 📌 Fuentes oficiales de Sonora
+// ============================
 const OFFICIAL_SOURCES = {
   twitter: {
     pc_sonora: "PC_Sonora",
     clima_sonora: "ClimaSonora",
-    gobierno_sonora: "GobiernoSonora"
-  }
+    gobierno_sonora: "GobiernoSonora",
+  },
+  web: [
+    "https://proteccioncivil.sonora.gob.mx",
+    "https://twitter.com/PC_Sonora",
+    "https://twitter.com/GobiernoSonora",
+  ],
 };
 
-// ---- Fetch de Twitter ----
+// ============================
+// 📌 Mocks iniciales
+// ============================
+const OFFICIAL_EVENTS = [
+  {
+    id: "official_1",
+    timestamp: new Date().toISOString(),
+    source_type: "official",
+    source_name: "Protección Civil Sonora",
+    source_url: "https://proteccioncivil.sonora.gob.mx",
+    topic: "alerta",
+    headline: "Alerta preventiva por Huracán Lorena en Sonora",
+    summary_120w: "Protección Civil emite recomendaciones preventivas ante el Huracán Lorena en la región costera de Sonora.",
+    public_health_risk: "high",
+    change_flag: true,
+    area: "Costa de Sonora",
+  },
+  {
+    id: "official_2",
+    timestamp: new Date().toISOString(),
+    source_type: "official",
+    source_name: "Gobierno de Sonora",
+    source_url: "https://twitter.com/GobiernoSonora",
+    topic: "salud pública",
+    headline: "Gobierno del Estado activa refugios temporales",
+    summary_120w: "Se habilitan refugios temporales en Guaymas y Empalme debido al impacto del Huracán Lorena.",
+    public_health_risk: "medium",
+    change_flag: true,
+    area: "Guaymas y Empalme",
+  },
+];
+
+// ============================
+// 📡 Fetch de Twitter
+// ============================
 async function fetchTwitterData() {
   if (!TWITTER_BEARER_TOKEN) {
-    console.warn("⚠️ Twitter Bearer Token no configurado. Omitiendo datos de Twitter.");
+    console.warn("⚠️ Twitter Bearer Token no configurado.");
     return [];
   }
 
@@ -40,192 +80,118 @@ async function fetchTwitterData() {
       `https://api.twitter.com/2/tweets/search/recent?query=${encodeURIComponent(query)}&max_results=20&tweet.fields=created_at,author_id,text`,
       {
         headers: {
-          Authorization: `Bearer ${TWITTER_BEARER_TOKEN}`
-        }
+          Authorization: `Bearer ${TWITTER_BEARER_TOKEN}`,
+        },
       }
     );
 
-    return response.data.data || [];
+    return (response.data.data || []).map((tweet) => ({
+      id: tweet.id,
+      timestamp: tweet.created_at,
+      source_type: "twitter",
+      source_name: tweet.author_id,
+      source_url: `https://twitter.com/i/web/status/${tweet.id}`,
+      topic: "huracan",
+      headline: tweet.text.substring(0, 80) + "...",
+      summary_120w: tweet.text,
+      public_health_risk: "medium",
+      change_flag: false,
+      area: "Sonora",
+    }));
   } catch (error) {
     console.error("Error fetching Twitter data:", error.message);
     return [];
   }
 }
 
-// ---- Fetch de APIs oficiales (Mock) ----
-async function fetchOfficialAPIData() {
-  try {
-    const mockOfficialData = [
-      {
-        id: "pc_001",
-        timestamp: new Date().toISOString(),
-        source_type: "official",
-        source_name: "Protección Civil Sonora",
-        source_url: "https://sonora.gob.mx",
-        topic: "clima",
-        headline: "Alerta por lluvias intensas en el norte de Sonora",
-        summary_120w:
-          "Se emite alerta por lluvias intensas en los municipios del norte de Sonora. Se recomienda precaución.",
-        public_health_risk: "high",
-        change_flag: true,
-        lat: 29.1056,
-        lng: -110.9428,
-        area: "Norte de Sonora"
-      },
-      {
-        id: "clima_001",
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // hace 2 horas
-        source_type: "official",
-        source_name: "Servicio Meteorológico Sonora",
-        source_url: "https://sonora.gob.mx",
-        topic: "clima",
-        headline: "Pronóstico de temperaturas elevadas para el fin de semana",
-        summary_120w:
-          "Se esperan temperaturas superiores a los 40°C en el sur del estado durante el fin de semana.",
-        public_health_risk: "medium",
-        change_flag: false,
-        lat: 28.389,
-        lng: -109.5,
-        area: "Sur de Sonora"
-      }
-    ];
+// ============================
+// 📰 Fetch de NewsAPI
+// ============================
+async function fetchNewsAPIData() {
+  if (!NEWS_API_KEY) {
+    console.warn("⚠️ NEWS_API_KEY no configurado.");
+    return [];
+  }
 
-    return mockOfficialData;
+  try {
+    const url = `https://newsapi.org/v2/everything?q=huracan+lorena+sonora&language=es&sortBy=publishedAt&pageSize=10&apiKey=${NEWS_API_KEY}`;
+    const response = await axios.get(url);
+
+    return response.data.articles.map((article, i) => ({
+      id: `news_${i}`,
+      timestamp: article.publishedAt,
+      source_type: "news",
+      source_name: article.source.name,
+      source_url: article.url,
+      topic: "huracan",
+      headline: article.title,
+      summary_120w: article.description || article.title,
+      public_health_risk: "medium",
+      change_flag: false,
+      area: "Sonora",
+    }));
   } catch (error) {
-    console.error("Error fetching official API data:", error.message);
+    console.error("Error fetching NewsAPI data:", error.message);
     return [];
   }
 }
 
-// ---- Procesar Tweets ----
-function processTwitterData(tweets) {
-  return tweets.map(tweet => {
-    const text = tweet.text.toLowerCase();
-    let risk = "medium";
+// ============================
+// 📰 Fetch de Google News RSS
+// ============================
+async function fetchGoogleNewsRSS() {
+  try {
+    const feed = await rssParser.parseURL(
+      "https://news.google.com/rss/search?q=huracan+lorena+sonora&hl=es-419&gl=MX&ceid=MX:es-419"
+    );
 
-    if (text.includes("emergencia") || text.includes("evacuación") || text.includes("alerta")) {
-      risk = "high";
-    } else if (text.includes("precaución") || text.includes("lluvia") || text.includes("viento")) {
-      risk = "medium";
-    } else {
-      risk = "low";
-    }
-
-    return {
-      id: `tw_${tweet.id}`,
-      timestamp: tweet.created_at,
-      source_type: "social",
-      source_name: `Twitter/@${tweet.author_id}`,
-      source_url: `https://twitter.com/${tweet.author_id}/status/${tweet.id}`,
-      social_platform: "twitter",
-      topic: "general",
-      headline: tweet.text.length > 50 ? tweet.text.substring(0, 47) + "..." : tweet.text,
-      summary_120w: tweet.text,
-      public_health_risk: risk,
-      change_flag: text.includes("actualización") || text.includes("nuevo"),
-      area: "Sonora"
-    };
-  });
+    return feed.items.map((item, i) => ({
+      id: `rss_${i}`,
+      timestamp: item.pubDate,
+      source_type: "rss",
+      source_name: item.source || "Google News",
+      source_url: item.link,
+      topic: "huracan",
+      headline: item.title,
+      summary_120w: item.contentSnippet || item.title,
+      public_health_risk: "low",
+      change_flag: false,
+      area: "Sonora",
+    }));
+  } catch (error) {
+    console.error("Error fetching Google RSS data:", error.message);
+    return [];
+  }
 }
 
-// ---- Función para obtener todos los eventos ----
-async function fetchEvents() {
-  const cachedData = cache.get("emergency_events");
-  if (cachedData) return cachedData;
-
-  const [twitterData, officialData] = await Promise.all([
-    fetchTwitterData(),
-    fetchOfficialAPIData()
-  ]);
-
-  const allEvents = [...officialData, ...processTwitterData(twitterData)];
-  allEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-  cache.set("emergency_events", allEvents);
-  return allEvents;
-}
-
-// ---- Endpoints ----
+// ============================
+// 🚀 Endpoint principal
+// ============================
 app.get("/api/events", async (req, res) => {
-  try {
-    const events = await fetchEvents();
-    res.json(events);
-  } catch (err) {
-    res.status(500).json({ error: "Error al obtener eventos" });
-  }
-});
+  let events = [...OFFICIAL_EVENTS];
 
-app.get("/api/summary", async (req, res) => {
-  try {
-    const events = await fetchEvents();
-    const riskLevels = { low: 0, medium: 1, high: 2 };
-    let highestRisk = "low";
+  // Twitter
+  let twitterData = await fetchTwitterData();
+  events = events.concat(twitterData);
 
-    events.forEach(e => {
-      if (riskLevels[e.public_health_risk] > riskLevels[highestRisk]) {
-        highestRisk = e.public_health_risk;
-      }
-    });
+  // Si Twitter no devolvió nada, usar NewsAPI
+  if (twitterData.length === 0) {
+    let newsData = await fetchNewsAPIData();
+    events = events.concat(newsData);
 
-    res.json({
-      risk_level: highestRisk,
-      summary:
-        highestRisk === "high"
-          ? "Situación crítica con impacto severo. Evacuaciones y riesgos significativos."
-          : highestRisk === "medium"
-          ? "Impacto moderado, riesgos sanitarios localizados. Mantente informado."
-          : "Situación controlada, impacto menor.",
-      total_events: events.length,
-      critical_alerts: events.filter(e => e.public_health_risk === "high").length
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Error al generar resumen" });
-  }
-});
-
-app.get("/api/stats", async (req, res) => {
-  try {
-    const events = await fetchEvents();
-    res.json({
-      total: events.length,
-      by_type: {
-        official: events.filter(e => e.source_type === "official").length,
-        social: events.filter(e => e.source_type === "social").length
-      },
-      by_risk: {
-        high: events.filter(e => e.public_health_risk === "high").length,
-        medium: events.filter(e => e.public_health_risk === "medium").length,
-        low: events.filter(e => e.public_health_risk === "low").length
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Error al generar estadísticas" });
-  }
-});
-
-app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
-    message: "Backend MonSON en línea 🚀",
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || "development"
-  });
-});
-
-app.get("/", (req, res) => {
-  res.json({
-    status: "ok",
-    message: "Backend MonSON en línea 🚀",
-    endpoints: {
-      events: "/api/events",
-      summary: "/api/summary",
-      stats: "/api/stats",
-      health: "/api/health"
+    // Si tampoco hay nada en NewsAPI, usar RSS
+    if (newsData.length === 0) {
+      let rssData = await fetchGoogleNewsRSS();
+      events = events.concat(rssData);
     }
-  });
+  }
+
+  res.json(events);
 });
 
-// ---- Iniciar servidor ----
+// ============================
+// 🚀 Iniciar servidor
+// ============================
 app.listen(PORT, () => {
-  console.log(`🚨 Servidor corriendo en puerto ${PORT}`);
+  console.log(`✅ Backend corriendo en puerto ${PORT}`);
 });
