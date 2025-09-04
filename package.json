@@ -1,16 +1,20 @@
 {
-  "name": "monson-backend",
+  "name": "mon-son-frontend",
   "version": "1.0.0",
   "type": "module",
-  "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "axios": "^1.7.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "node-cache": "^5.1.2"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "vite": "^4.4.0",
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
   }
 }
