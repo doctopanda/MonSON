@@ -139,6 +139,18 @@
         .export-button:hover {
             transform: translateY(-2px);
         }
+        .social-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 6px;
+        }
+        .facebook { background-color: #1877f2; color: white; }
+        .twitter { background-color: #1da1f2; color: white; }
+        .instagram { background-color: #e4405f; color: white; }
+        .tiktok { background-color: #000000; color: white; }
     </style>
 </head>
 <body class="antialiased text-gray-800">
@@ -185,6 +197,7 @@
                             <button class="filter-button px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="official">Oficial</button>
                             <button class="filter-button px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="healthcare">Salud</button>
                             <button class="filter-button px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="infrastructure">Infraestructura</button>
+                            <button class="filter-button px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="social">Redes Sociales</button>
                          </div>
                     </div>
                     <div id="timeline-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -233,8 +246,6 @@
                     <h2 class="text-xl font-bold border-b-2 border-gray-100 pb-2 mb-3">Exportar Datos</h2>
                     <p class="text-sm text-gray-600 mb-4">Descargue el registro completo de eventos para su análisis.</p>
                     <div class="grid grid-cols-2 gap-2">
-                        <button id="export-json" class="export-button bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">JSON</button>
-                        <button id="export-csv" class="export-button bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">CSV</button>
                         <button id="export-txt" class="export-button bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">TXT</button>
                         <button id="export-pdf" class="export-button bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">PDF</button>
                     </div>
@@ -260,77 +271,127 @@
         document.addEventListener('DOMContentLoaded', function () {
             const TIMEZONE = 'America/Hermosillo';
 
-            // --- Mock Data con enlaces a fuentes ---
+            // --- Datos de ejemplo con enlaces específicos y redes sociales ---
             const eventData = [
                 {
                     "id": "evt001", 
                     "timestamp_local": "2025-09-03T02:00:00-07:00", 
                     "source_type": "official", 
                     "source_name": "SMN/CONAGUA", 
-                    "source_url": "https://smn.conagua.gob.mx/es/",
+                    "source_url": "https://smn.conagua.gob.mx/es/comunicados/lluvias-intensas-hermosillo-septiembre-2025",
                     "topic": "rain",
                     "headline": "Lluvias intensas registran acumulado de 83 mm en Hermosillo", 
                     "summary_120w": "El Servicio Meteorológico Nacional reporta lluvias torrenciales durante la madrugada, con un acumulado de 83 milímetros en la zona norte de Hermosillo, superando los pronósticos iniciales.",
                     "verification": "verified", 
                     "public_health_risk": "medium", 
                     "change_flag": false,
-                    "location": { "x": 25, "y": 40, "area": "Hermosillo Norte" }
+                    "location": { "x": 25, "y": 40, "area": "Hermosillo Norte" },
+                    "antecedentes": "Las lluvias registradas la madrugada de este miércoles en la capital de Sonora, dejaron un acumulado de hasta 83 milímetros, provocando afectaciones principalmente en la zona norte de la ciudad.",
+                    "situacion_actual": "Lluvias intensas continúan afectando la zona norte de Hermosillo.",
+                    "acciones_realizadas": "Monitoreo constante por parte del SMN/CONAGUA.",
+                    "acciones_pendientes": "Seguimiento de la evolución meteorológica."
                 },
                 {
                     "id": "evt002", 
                     "timestamp_local": "2025-09-03T04:30:00-07:00", 
                     "source_type": "media", 
                     "source_name": "El Imparcial", 
-                    "source_url": "https://www.elimparcial.com/",
+                    "source_url": "https://www.elimparcial.com/hermosillo/inundaciones-severas-colonias-mirasoles-bachoco-caridad",
                     "topic": "infrastructure",
                     "headline": "Inundaciones severas en colonias Mirasoles, Bachoco y La Caridad", 
                     "summary_120w": "Medios locales informan de inundaciones significativas y arrastre de vehículos en varias colonias del norte de la ciudad. Se reportan cortes de energía y caída de árboles.",
                     "verification": "verified", 
                     "public_health_risk": "medium", 
                     "change_flag": false,
-                    "location": { "x": 30, "y": 50, "area": "Mirasoles" }
+                    "location": { "x": 30, "y": 50, "area": "Mirasoles" },
+                    "antecedentes": "Durante la tormenta se atendieron reportes de inundaciones en colonias como Mirasoles, Bachoco y Caridad, además de caídas de árboles, acumulación de agua en calles y el arrastre de vehículos en cauces pluviales.",
+                    "situacion_actual": "Inundaciones severas en colonias del norte de Hermosillo.",
+                    "acciones_realizadas": "Equipos de emergencia desplegados en la zona.",
+                    "acciones_pendientes": "Evaluación de daños y necesidades de la población afectada."
                 },
                 {
                     "id": "evt003", 
                     "timestamp_local": "2025-09-03T07:00:00-07:00", 
                     "source_type": "official", 
                     "source_name": "Ayuntamiento de Hermosillo", 
-                    "source_url": "https://www.hermosillo.gob.mx/",
+                    "source_url": "https://www.hermosillo.gob.mx/noticias/evacuacion-familias-la-caridad",
                     "topic": "evacuation",
                     "headline": "Evalúan evacuación de 40 familias en la colonia La Caridad", 
                     "summary_120w": "Autoridades municipales informan que 40 viviendas en La Caridad sufrieron daños por inundación. Se está analizando el traslado de los afectados a refugios temporales.",
                     "verification": "verified", 
                     "public_health_risk": "high", 
                     "change_flag": true,
-                    "location": { "x": 35, "y": 60, "area": "La Caridad" }
+                    "location": { "x": 35, "y": 60, "area": "La Caridad" },
+                    "antecedentes": "Las lluvias registradas la madrugada de este miércoles provocaron afectaciones materiales en viviendas de la colonia La Caridad.",
+                    "situacion_actual": "40 familias afectadas con daños en sus viviendas. Se analiza su traslado a refugios temporales.",
+                    "acciones_realizadas": "Evaluación de daños en viviendas.",
+                    "acciones_pendientes": "Coordinación para habilitación de refugios temporales."
                 },
                 {
                     "id": "evt004", 
                     "timestamp_local": "2025-09-03T08:15:00-07:00", 
                     "source_type": "official", 
                     "source_name": "Protección Civil Sonora", 
-                    "source_url": "https://proteccioncivil.sonora.gob.mx/",
+                    "source_url": "https://proteccioncivil.sonora.gob.mx/refugios-temporales-hermosillo",
                     "topic": "shelters",
                     "headline": "Habilitan 5 refugios temporales en Hermosillo", 
                     "summary_120w": "Se habilitan oficialmente los Centros Hábitat, Solidaridad 1, Minitas, Casa Galilea y Miguel Alemán como refugios temporales para recibir a las familias afectadas por las inundaciones.",
                     "verification": "verified", 
                     "public_health_risk": "high", 
                     "change_flag": true,
-                    "location": { "x": 40, "y": 70, "area": "Centro" }
+                    "location": { "x": 40, "y": 70, "area": "Centro" },
+                    "antecedentes": "Ante las afectaciones por inundaciones en colonias del norte de Hermosillo.",
+                    "situacion_actual": "5 refugios temporales habilitados para recibir a familias afectadas.",
+                    "acciones_realizadas": "Habilitación de refugios temporales.",
+                    "acciones_pendientes": "Coordinación interinstitucional para atención a afectados."
                 },
                 {
                     "id": "evt005", 
                     "timestamp_local": "2025-09-03T09:00:00-07:00", 
                     "source_type": "official", 
                     "source_name": "Secretaría de Salud Sonora", 
-                    "source_url": "https://www.saludsonora.gob.mx/",
+                    "source_url": "https://www.saludsonora.gob.mx/alerta-sanitaria-inundaciones",
                     "topic": "healthcare",
                     "headline": "Emiten alerta sanitaria por riesgos tras inundaciones", 
                     "summary_120w": "La Secretaría de Salud emite recomendaciones para prevenir enfermedades diarreicas y transmitidas por vector (dengue). Se pide a la población clorar el agua, manejar adecuadamente los residuos y evitar el contacto con aguas estancadas.",
                     "verification": "verified", 
                     "public_health_risk": "high", 
                     "change_flag": true,
-                    "location": { "x": 45, "y": 80, "area": "Hermosillo Sur" }
+                    "location": { "x": 45, "y": 80, "area": "Hermosillo Sur" },
+                    "antecedentes": "Inundaciones recientes en Hermosillo.",
+                    "situacion_actual": "Riesgo de enfermedades diarreicas y transmitidas por vector.",
+                    "acciones_realizadas": "Emisión de alerta sanitaria.",
+                    "acciones_pendientes": "Difusión de medidas preventivas a la población."
+                },
+                {
+                    "id": "evt006", 
+                    "timestamp_local": "2025-09-03T10:30:00-07:00", 
+                    "source_type": "social", 
+                    "source_name": "Facebook", 
+                    "source_url": "https://www.facebook.com/photo.php?fbid=1265165928625665",
+                    "social_platform": "facebook",
+                    "topic": "evacuation",
+                    "headline": "Vecinos reportan evacuación en La Caridad", 
+                    "summary_120w": "Vecinos de la colonia La Caridad comparten en redes sociales imágenes de las afectaciones y el proceso de evacuación de familias.",
+                    "verification": "pending", 
+                    "public_health_risk": "medium", 
+                    "change_flag": false,
+                    "location": { "x": 35, "y": 62, "area": "La Caridad" }
+                },
+                {
+                    "id": "evt007", 
+                    "timestamp_local": "2025-09-03T11:15:00-07:00", 
+                    "source_type": "social", 
+                    "source_name": "Twitter", 
+                    "source_url": "https://twitter.com/usuario/status/1234567890123456789",
+                    "social_platform": "twitter",
+                    "topic": "infrastructure",
+                    "headline": "Usuario reporta corte de energía en Mirasoles", 
+                    "summary_120w": "Usuario de Twitter reporta corte de energía eléctrica en la colonia Mirasoles desde las 10:45 AM.",
+                    "verification": "pending", 
+                    "public_health_risk": "low", 
+                    "change_flag": false,
+                    "location": { "x": 32, "y": 52, "area": "Mirasoles" }
                 }
             ].sort((a, b) => new Date(b.timestamp_local) - new Date(a.timestamp_local));
 
@@ -347,8 +408,6 @@
             const alertsModal = document.getElementById('alerts-modal');
             const modalClose = document.getElementById('modal-close');
             const modalBody = document.getElementById('modal-body');
-            const exportJsonBtn = document.getElementById('export-json');
-            const exportCsvBtn = document.getElementById('export-csv');
             const exportTxtBtn = document.getElementById('export-txt');
             const exportPdfBtn = document.getElementById('export-pdf');
             const mapPointsContainer = document.getElementById('map-points-container');
@@ -360,10 +419,19 @@
                 return new Date(isoString).toLocaleTimeString('es-MX', options);
             }
 
+            function getSocialBadge(platform) {
+                if (!platform) return '';
+                return `<span class="social-badge ${platform}">${platform.toUpperCase()}</span>`;
+            }
+
             function renderTimeline(filter = 'all') {
                 let filteredData = eventData;
                 if (filter !== 'all') {
-                    filteredData = eventData.filter(event => event.source_type === filter || event.topic === filter);
+                    if (filter === 'social') {
+                        filteredData = eventData.filter(event => event.source_type === 'social');
+                    } else {
+                        filteredData = eventData.filter(event => event.source_type === filter || event.topic === filter);
+                    }
                 }
 
                 if (filteredData.length === 0) {
@@ -380,7 +448,7 @@
                         <div class="relative w-full">
                             <div class="absolute top-1 left-[-22px] w-4 h-4 rounded-full bg-white border-2 ${event.change_flag ? 'border-red-500' : 'border-blue-500'}"></div>
                             <div class="border-l-2 ${event.change_flag ? 'border-red-500' : 'border-blue-500'} pl-6 pb-4">
-                                <p class="font-semibold">${event.headline}</p>
+                                <p class="font-semibold">${event.headline} ${event.social_platform ? getSocialBadge(event.social_platform) : ''}</p>
                                 <p class="text-sm text-gray-600 mt-1">${event.summary_120w}</p>
                                 <p class="text-xs text-gray-500 mt-2">Fuente: 
                                     <a href="${event.source_url}" target="_blank" class="source-link">${event.source_name}</a> 
@@ -519,7 +587,7 @@
                             <div class="relative w-full">
                                 <div class="absolute top-1 left-[-22px] w-4 h-4 rounded-full bg-white border-2 ${event.change_flag ? 'border-red-500' : 'border-blue-500'}"></div>
                                 <div class="border-l-2 ${event.change_flag ? 'border-red-500' : 'border-blue-500'} pl-6 pb-4">
-                                    <p class="font-semibold">${event.headline}</p>
+                                    <p class="font-semibold">${event.headline} ${event.social_platform ? getSocialBadge(event.social_platform) : ''}</p>
                                     <p class="text-sm text-gray-600 mt-1">${event.summary_120w}</p>
                                     <p class="text-xs text-gray-500 mt-2">Fuente: 
                                         <a href="${event.source_url}" target="_blank" class="source-link">${event.source_name}</a> 
@@ -549,33 +617,41 @@
                 link.click();
                 document.body.removeChild(link);
             }
-            
-            function exportToJSON() {
-                const jsonData = JSON.stringify(eventData, null, 2);
-                downloadFile('monitoreo_eventos.json', jsonData, 'application/json');
-            }
-
-            function exportToCSV() {
-                const headers = "id,timestamp_local,source_type,source_name,source_url,topic,headline,summary_120w,verification,public_health_risk,change_flag";
-                const rows = eventData.map(e => `"${e.id}","${e.timestamp_local}","${e.source_type}","${e.source_name}","${e.source_url}","${e.topic}","${e.headline.replace(/"/g, '""')}","${e.summary_120w.replace(/"/g, '""')}","${e.verification}","${e.public_health_risk}",${e.change_flag}`);
-                const csvData = `${headers}\n${rows.join('\n')}`;
-                downloadFile('monitoreo_eventos.csv', csvData, 'text/csv;charset=utf-8;');
-            }
 
             function exportToTXT() {
-                let txtData = "PANEL DE MONITOREO DE EMERGENCIAS - SONORA\n";
-                txtData += "============================================\n\n";
+                let txtData = "Reporte de Vigilancia Basada en Eventos (VBE)\n";
+                txtData += "=================================================\n\n";
                 
-                eventData.forEach(event => {
-                    txtData += `EVENTO: ${event.headline}\n`;
-                    txtData += `FECHA: ${new Date(event.timestamp_local).toLocaleDateString('es-MX')}\n`;
-                    txtData += `HORA: ${formatTime(event.timestamp_local)}\n`;
-                    txtData += `FUENTE: ${event.source_name} (${event.source_type})\n`;
-                    txtData += `ENLACE: ${event.source_url}\n`;
-                    txtData += `DESCRIPCIÓN: ${event.summary_120w}\n`;
-                    txtData += `RIESGO: ${event.public_health_risk}\n`;
-                    txtData += `ALERTA: ${event.change_flag ? 'CRÍTICA' : 'Normal'}\n`;
-                    txtData += "----------------------------------------\n\n";
+                eventData.forEach((event, index) => {
+                    txtData += `Notificación: ${event.headline}\n`;
+                    txtData += `Área que emite: Monitoreo Estatal\n\n`;
+                    txtData += `${event.summary_120w}\n\n`;
+                    
+                    if (event.antecedentes) {
+                        txtData += `Antecedentes:\n`;
+                        txtData += `- ${event.antecedentes}\n\n`;
+                    }
+                    
+                    if (event.situacion_actual) {
+                        txtData += `Descripción de la situación actual:\n`;
+                        txtData += `- ${event.situacion_actual}\n\n`;
+                    }
+                    
+                    if (event.acciones_realizadas) {
+                        txtData += `Acciones realizadas:\n`;
+                        txtData += `- ${event.acciones_realizadas}\n\n`;
+                    }
+                    
+                    if (event.acciones_pendientes) {
+                        txtData += `Acciones por realizar:\n`;
+                        txtData += `- ${event.acciones_pendientes}\n\n`;
+                    }
+                    
+                    txtData += `Fuente: ${event.source_name} (${event.source_type})\n`;
+                    txtData += `Enlace: ${event.source_url}\n`;
+                    txtData += `Fecha: ${new Date(event.timestamp_local).toLocaleDateString('es-MX')}\n`;
+                    txtData += `Hora: ${formatTime(event.timestamp_local)}\n`;
+                    txtData += "=================================================\n\n";
                 });
                 
                 downloadFile('monitoreo_eventos.txt', txtData, 'text/plain');
@@ -586,45 +662,106 @@
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
                 
-                // Título
-                doc.setFontSize(20);
-                doc.text("PANEL DE MONITOREO DE EMERGENCIAS - SONORA", 105, 15, { align: 'center' });
+                let y = 15;
+                let page = 1;
                 
-                // Fecha de exportación
-                doc.setFontSize(12);
-                doc.text(`Exportado el: ${new Date().toLocaleDateString('es-MX')}`, 105, 22, { align: 'center' });
-                
-                // Contenido
-                let y = 35;
                 eventData.forEach((event, index) => {
                     if (y > 270) {
                         doc.addPage();
-                        y = 20;
+                        y = 15;
+                        page++;
                     }
                     
+                    // Título
+                    doc.setFontSize(16);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text("Reporte de Vigilancia Basada en Eventos (VBE)", 105, y, { align: 'center' });
+                    y += 10;
+                    
+                    // Línea separadora
+                    doc.setDrawColor(0, 0, 0);
+                    doc.line(20, y, 190, y);
+                    y += 5;
+                    
+                    // Nombre del evento
                     doc.setFontSize(14);
-                    doc.text(`${index + 1}. ${event.headline}`, 14, y);
+                    doc.text(`Notificación: ${event.headline}`, 20, y);
                     y += 8;
                     
+                    // Área que emite
+                    doc.setFontSize(12);
+                    doc.text(`Área que emite: Monitoreo Estatal`, 20, y);
+                    y += 8;
+                    
+                    // Descripción
+                    const splitSummary = doc.splitTextToSize(event.summary_120w, 170);
+                    doc.text(splitSummary, 20, y);
+                    y += (splitSummary.length * 6) + 5;
+                    
+                    // Antecedentes
+                    if (event.antecedentes) {
+                        doc.setFontSize(12);
+                        doc.setTextColor(0, 0, 0);
+                        doc.text("Antecedentes:", 20, y);
+                        y += 6;
+                        
+                        doc.setFontSize(11);
+                        const splitAntecedentes = doc.splitTextToSize(`- ${event.antecedentes}`, 170);
+                        doc.text(splitAntecedentes, 20, y);
+                        y += (splitAntecedentes.length * 5) + 3;
+                    }
+                    
+                    // Situación actual
+                    if (event.situacion_actual) {
+                        doc.setFontSize(12);
+                        doc.setTextColor(0, 0, 0);
+                        doc.text("Descripción de la situación actual:", 20, y);
+                        y += 6;
+                        
+                        doc.setFontSize(11);
+                        const splitSituacion = doc.splitTextToSize(`- ${event.situacion_actual}`, 170);
+                        doc.text(splitSituacion, 20, y);
+                        y += (splitSituacion.length * 5) + 3;
+                    }
+                    
+                    // Acciones realizadas
+                    if (event.acciones_realizadas) {
+                        doc.setFontSize(12);
+                        doc.setTextColor(0, 0, 0);
+                        doc.text("Acciones realizadas:", 20, y);
+                        y += 6;
+                        
+                        doc.setFontSize(11);
+                        const splitAcciones = doc.splitTextToSize(`- ${event.acciones_realizadas}`, 170);
+                        doc.text(splitAcciones, 20, y);
+                        y += (splitAcciones.length * 5) + 3;
+                    }
+                    
+                    // Acciones por realizar
+                    if (event.acciones_pendientes) {
+                        doc.setFontSize(12);
+                        doc.setTextColor(0, 0, 0);
+                        doc.text("Acciones por realizar:", 20, y);
+                        y += 6;
+                        
+                        doc.setFontSize(11);
+                        const splitPendientes = doc.splitTextToSize(`- ${event.acciones_pendientes}`, 170);
+                        doc.text(splitPendientes, 20, y);
+                        y += (splitPendientes.length * 5) + 3;
+                    }
+                    
+                    // Fuente
                     doc.setFontSize(10);
-                    doc.text(`Fecha: ${new Date(event.timestamp_local).toLocaleDateString('es-MX')} ${formatTime(event.timestamp_local)}`, 14, y);
+                    doc.setTextColor(100, 100, 100);
+                    doc.text(`Fuente: ${event.source_name} (${event.source_type}) | Enlace: ${event.source_url}`, 20, y);
                     y += 5;
                     
-                    doc.text(`Fuente: ${event.source_name} (${event.source_type})`, 14, y);
-                    y += 5;
+                    doc.text(`Fecha: ${new Date(event.timestamp_local).toLocaleDateString('es-MX')} | Hora: ${formatTime(event.timestamp_local)}`, 20, y);
+                    y += 10;
                     
-                    doc.text(`Enlace: ${event.source_url}`, 14, y);
-                    y += 5;
-                    
-                    // Descripción con texto ajustado
-                    const splitText = doc.splitTextToSize(event.summary_120w, 180);
-                    doc.text(splitText, 14, y);
-                    y += (splitText.length * 5) + 5;
-                    
-                    doc.text(`Riesgo: ${event.public_health_risk}`, 14, y);
-                    y += 5;
-                    
-                    doc.text(`Alerta: ${event.change_flag ? 'CRÍTICA' : 'Normal'}`, 14, y);
+                    // Línea separadora
+                    doc.setDrawColor(200, 200, 200);
+                    doc.line(20, y, 190, y);
                     y += 10;
                 });
                 
@@ -656,8 +793,6 @@
             });
             
             // Exportación de datos
-            exportJsonBtn.addEventListener('click', exportToJSON);
-            exportCsvBtn.addEventListener('click', exportToCSV);
             exportTxtBtn.addEventListener('click', exportToTXT);
             exportPdfBtn.addEventListener('click', exportToPDF);
 
