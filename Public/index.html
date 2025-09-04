@@ -1,0 +1,27 @@
+<!-- Después de la sección de Exportar Datos -->
+<section class="card p-6">
+    <h2 class="text-xl font-bold border-b-2 border-gray-100 pb-2 mb-3">Reportar Incidencia</h2>
+    <form name="reporte" netlify>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de incidencia</label>
+                <select name="tipo" class="w-full p-2 border border-gray-300 rounded-md" required>
+                    <option value="">Seleccionar...</option>
+                    <option value="inundacion">Inundación</option>
+                    <option value="deslave">Deslave</option>
+                    <option value="accidente">Accidente</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                <textarea name="descripcion" rows="3" class="w-full p-2 border border-gray-300 rounded-md" required></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Ubicación aproximada</label>
+                <input type="text" name="ubicacion" class="w-full p-2 border border-gray-300 rounded-md" required>
+            </div>
+            <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300">Enviar Reporte</button>
+        </div>
+    </form>
+</section>
