@@ -306,7 +306,7 @@
             // Función para verificar conexión con el backend
             async function checkBackendConnection() {
                 try {
-                    const response = await fetch('https://monson.onrender.com/api/health', {
+                    const response = await fetch('https://monson-backend.onrender.com/api/health', {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json'
@@ -346,6 +346,21 @@
                         "lat": 29.0892,
                         "lng": -110.9613,
                         "area": "Sistema"
+                    },
+                    {
+                        "id": "fallback_002", 
+                        "timestamp": new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+                        "source_type": "official", 
+                        "source_name": "Gobierno de Sonora", 
+                        "source_url": "#",
+                        "topic": "clima",
+                        "headline": "Alerta por altas temperaturas", 
+                        "summary_120w": "Se esperan temperaturas superiores a los 40°C en el sur del estado.",
+                        "public_health_risk": "high", 
+                        "change_flag": false,
+                        "lat": 28.3890,
+                        "lng": -109.5000,
+                        "area": "Sur de Sonora"
                     }
                 ];
             }
@@ -353,7 +368,7 @@
             // Obtener datos reales de emergencias desde el backend
             async function fetchEmergencyData() {
                 try {
-                    const backendUrl = 'https://monson.onrender.com/api/events';
+                    const backendUrl = 'https://monson-backend.onrender.com/api/events';
                     
                     const response = await fetch(backendUrl, {
                         headers: {
@@ -580,4 +595,9 @@
                             body { font-family: Arial, sans-serif; margin: 0 auto; padding: 20px; max-width: 800px; }
                             h1 { color: #003366; font-size: 1.5rem; margin-bottom: 0; text-align: center; }
                             .header { text-align: center; margin-bottom: 20px; }
-                            .date { font-size: 0.8rem; color:
+                            .date { font-size: 0.8rem; color: #6b7280; }
+                            hr { border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }
+                            h2 { font-size: 1.2rem; font-weight: bold; color: #1f2937; }
+                            h3 { font-size: 1.1rem; font-weight: bold; color: #1f2937; margin-top: 20px; }
+                            p { font-size: 1rem; color: #374151; margin-top: 5px; }
+                            .footer { margin-top: 30px; font-size: 0.8rem; color:
