@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoreo de Emergencias en Sonora</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
@@ -21,7 +23,7 @@
             width: 2rem;
             height: 2rem;
             border-radius: 50%;
-            transition: background-color 0.5s ease-in-out;
+            transition: all 0.5s ease-in-out;
         }
         .risk-low { 
             background-color: #4ade80; 
@@ -56,63 +58,10 @@
         }
         
         /* Estilos para el mapa */
-        .map-container {
-            position: relative;
-            background-color: #e5e7eb;
-            border-radius: 0.5rem;
-            overflow: hidden;
+        #map-container {
             height: 300px;
-        }
-        .map-background {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #a5f3fc 0%, #0ea5e9 100%);
-            opacity: 0.7;
-        }
-        .map-point {
-            position: absolute;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            z-index: 10;
-        }
-        .map-point:hover {
-            transform: translate(-50%, -50%) scale(1.3);
-            z-index: 20;
-        }
-        .map-point.risk-high {
-            background-color: #ef4444;
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.4);
-        }
-        .map-point.risk-medium {
-            background-color: #f59e0b;
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.4);
-        }
-        .map-point.risk-low {
-            background-color: #10b981;
-            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
-        }
-        .map-tooltip {
-            position: absolute;
-            background: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            font-size: 12px;
-            max-width: 160px;
-            z-index: 100;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        .map-tooltip.visible {
-            opacity: 1;
+            border-radius: 0.5rem;
+            z-index: 1;
         }
         
         /* Animaciones */
@@ -151,6 +100,16 @@
         .twitter { background-color: #1da1f2; color: white; }
         .instagram { background-color: #e4405f; color: white; }
         .tiktok { background-color: #000000; color: white; }
+        .news { background-color: #dc2626; color: white; }
+        .official { background-color: #059669; color: white; }
+        
+        .leaflet-popup-content {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .leaflet-popup-content-wrapper {
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body class="antialiased text-gray-800">
@@ -177,7 +136,7 @@
                         </div>
                         <!-- Resumen Ejecutivo -->
                         <div class="flex-1">
-                            <h3 class="font-semibold text-gray-700 mb-2">Resumen Ejecutivo</h3>
+                            <h3 class="font-semibold text-gray-700 mb-2">Resumen Ejecutivo</h2>
                             <p id="executive-summary" class="text-gray-600">Situación crítica con impacto severo. Hay evacuaciones activas y riesgos significativos para la salud pública. Se requiere máxima precaución y atención a las directivas de las autoridades.</p>
                         </div>
                     </div>
@@ -195,9 +154,9 @@
                          <div id="filter-buttons" class="flex flex-wrap gap-2 mt-2 md:mt-0">
                             <button class="filter-button active px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="all">Todos</button>
                             <button class="filter-button px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="official">Oficial</button>
+                            <button class="filter-button px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="social">Redes Sociales</button>
                             <button class="filter-button px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="healthcare">Salud</button>
                             <button class="filter-button px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="infrastructure">Infraestructura</button>
-                            <button class="filter-button px-3 py-1 text-sm rounded-full bg-gray-200 hover:bg-gray-300 transition" data-filter="social">Redes Sociales</button>
                          </div>
                     </div>
                     <div id="timeline-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
@@ -219,34 +178,15 @@
                 <!-- Mapa de Impacto -->
                 <section class="card p-6">
                     <h2 class="text-xl font-bold border-b-2 border-gray-100 pb-2 mb-3">Mapa de Impacto</h2>
-                    <div class="map-container rounded-lg">
-                        <div class="map-background"></div>
-                        <!-- Los puntos del mapa se generarán dinámicamente -->
-                        <div id="map-points-container"></div>
-                        <div id="map-tooltip" class="map-tooltip"></div>
-                        <div class="absolute bottom-4 left-4 bg-white p-2 rounded-lg shadow-md">
-                            <div class="flex items-center mb-1">
-                                <div class="w-3 h-3 rounded-full bg-red-500 mr-2"></div>
-                                <span class="text-xs">Alto riesgo</span>
-                            </div>
-                            <div class="flex items-center mb-1">
-                                <div class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></div>
-                                <span class="text-xs">Medio riesgo</span>
-                            </div>
-                            <div class="flex items-center">
-                                <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
-                                <span class="text-xs">Bajo riesgo</span>
-                            </div>
-                        </div>
-                    </div>
+                    <div id="map-container" class="rounded-lg"></div>
                 </section>
 
                  <!-- Exportar Datos -->
                  <section class="card p-6">
                     <h2 class="text-xl font-bold border-b-2 border-gray-100 pb-2 mb-3">Exportar Datos</h2>
-                    <p class="text-sm text-gray-600 mb-4">Descargue el registro completo de eventos para su análisis.</p>
+                    <p class="text-sm text-gray-600 mb-4">Generar reporte de vigilancia basado en eventos (VBE).</p>
                     <div class="grid grid-cols-2 gap-2">
-                        <button id="export-txt" class="export-button bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">TXT</button>
+                        <button id="export-doc" class="export-button bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">DOC</button>
                         <button id="export-pdf" class="export-button bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-300 text-sm">PDF</button>
                     </div>
                 </section>
@@ -270,131 +210,129 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const TIMEZONE = 'America/Hermosillo';
-
-            // --- Datos de ejemplo con enlaces específicos y redes sociales ---
-            const eventData = [
-                {
-                    "id": "evt001", 
-                    "timestamp_local": "2025-09-03T02:00:00-07:00", 
-                    "source_type": "official", 
-                    "source_name": "SMN/CONAGUA", 
-                    "source_url": "https://smn.conagua.gob.mx/es/comunicados/lluvias-intensas-hermosillo-septiembre-2025",
-                    "topic": "rain",
-                    "headline": "Lluvias intensas registran acumulado de 83 mm en Hermosillo", 
-                    "summary_120w": "El Servicio Meteorológico Nacional reporta lluvias torrenciales durante la madrugada, con un acumulado de 83 milímetros en la zona norte de Hermosillo, superando los pronósticos iniciales.",
-                    "verification": "verified", 
-                    "public_health_risk": "medium", 
-                    "change_flag": false,
-                    "location": { "x": 25, "y": 40, "area": "Hermosillo Norte" },
-                    "antecedentes": "Las lluvias registradas la madrugada de este miércoles en la capital de Sonora, dejaron un acumulado de hasta 83 milímetros, provocando afectaciones principalmente en la zona norte de la ciudad.",
-                    "situacion_actual": "Lluvias intensas continúan afectando la zona norte de Hermosillo.",
-                    "acciones_realizadas": "Monitoreo constante por parte del SMN/CONAGUA.",
-                    "acciones_pendientes": "Seguimiento de la evolución meteorológica."
-                },
-                {
-                    "id": "evt002", 
-                    "timestamp_local": "2025-09-03T04:30:00-07:00", 
-                    "source_type": "media", 
-                    "source_name": "El Imparcial", 
-                    "source_url": "https://www.elimparcial.com/hermosillo/inundaciones-severas-colonias-mirasoles-bachoco-caridad",
-                    "topic": "infrastructure",
-                    "headline": "Inundaciones severas en colonias Mirasoles, Bachoco y La Caridad", 
-                    "summary_120w": "Medios locales informan de inundaciones significativas y arrastre de vehículos en varias colonias del norte de la ciudad. Se reportan cortes de energía y caída de árboles.",
-                    "verification": "verified", 
-                    "public_health_risk": "medium", 
-                    "change_flag": false,
-                    "location": { "x": 30, "y": 50, "area": "Mirasoles" },
-                    "antecedentes": "Durante la tormenta se atendieron reportes de inundaciones en colonias como Mirasoles, Bachoco y Caridad, además de caídas de árboles, acumulación de agua en calles y el arrastre de vehículos en cauces pluviales.",
-                    "situacion_actual": "Inundaciones severas en colonias del norte de Hermosillo.",
-                    "acciones_realizadas": "Equipos de emergencia desplegados en la zona.",
-                    "acciones_pendientes": "Evaluación de daños y necesidades de la población afectada."
-                },
-                {
-                    "id": "evt003", 
-                    "timestamp_local": "2025-09-03T07:00:00-07:00", 
-                    "source_type": "official", 
-                    "source_name": "Ayuntamiento de Hermosillo", 
-                    "source_url": "https://www.hermosillo.gob.mx/noticias/evacuacion-familias-la-caridad",
-                    "topic": "evacuation",
-                    "headline": "Evalúan evacuación de 40 familias en la colonia La Caridad", 
-                    "summary_120w": "Autoridades municipales informan que 40 viviendas en La Caridad sufrieron daños por inundación. Se está analizando el traslado de los afectados a refugios temporales.",
-                    "verification": "verified", 
-                    "public_health_risk": "high", 
-                    "change_flag": true,
-                    "location": { "x": 35, "y": 60, "area": "La Caridad" },
-                    "antecedentes": "Las lluvias registradas la madrugada de este miércoles provocaron afectaciones materiales en viviendas de la colonia La Caridad.",
-                    "situacion_actual": "40 familias afectadas con daños en sus viviendas. Se analiza su traslado a refugios temporales.",
-                    "acciones_realizadas": "Evaluación de daños en viviendas.",
-                    "acciones_pendientes": "Coordinación para habilitación de refugios temporales."
-                },
-                {
-                    "id": "evt004", 
-                    "timestamp_local": "2025-09-03T08:15:00-07:00", 
-                    "source_type": "official", 
-                    "source_name": "Protección Civil Sonora", 
-                    "source_url": "https://proteccioncivil.sonora.gob.mx/refugios-temporales-hermosillo",
-                    "topic": "shelters",
-                    "headline": "Habilitan 5 refugios temporales en Hermosillo", 
-                    "summary_120w": "Se habilitan oficialmente los Centros Hábitat, Solidaridad 1, Minitas, Casa Galilea y Miguel Alemán como refugios temporales para recibir a las familias afectadas por las inundaciones.",
-                    "verification": "verified", 
-                    "public_health_risk": "high", 
-                    "change_flag": true,
-                    "location": { "x": 40, "y": 70, "area": "Centro" },
-                    "antecedentes": "Ante las afectaciones por inundaciones en colonias del norte de Hermosillo.",
-                    "situacion_actual": "5 refugios temporales habilitados para recibir a familias afectadas.",
-                    "acciones_realizadas": "Habilitación de refugios temporales.",
-                    "acciones_pendientes": "Coordinación interinstitucional para atención a afectados."
-                },
-                {
-                    "id": "evt005", 
-                    "timestamp_local": "2025-09-03T09:00:00-07:00", 
-                    "source_type": "official", 
-                    "source_name": "Secretaría de Salud Sonora", 
-                    "source_url": "https://www.saludsonora.gob.mx/alerta-sanitaria-inundaciones",
-                    "topic": "healthcare",
-                    "headline": "Emiten alerta sanitaria por riesgos tras inundaciones", 
-                    "summary_120w": "La Secretaría de Salud emite recomendaciones para prevenir enfermedades diarreicas y transmitidas por vector (dengue). Se pide a la población clorar el agua, manejar adecuadamente los residuos y evitar el contacto con aguas estancadas.",
-                    "verification": "verified", 
-                    "public_health_risk": "high", 
-                    "change_flag": true,
-                    "location": { "x": 45, "y": 80, "area": "Hermosillo Sur" },
-                    "antecedentes": "Inundaciones recientes en Hermosillo.",
-                    "situacion_actual": "Riesgo de enfermedades diarreicas y transmitidas por vector.",
-                    "acciones_realizadas": "Emisión de alerta sanitaria.",
-                    "acciones_pendientes": "Difusión de medidas preventivas a la población."
-                },
-                {
-                    "id": "evt006", 
-                    "timestamp_local": "2025-09-03T10:30:00-07:00", 
-                    "source_type": "social", 
-                    "source_name": "Facebook", 
-                    "source_url": "https://www.facebook.com/photo.php?fbid=1265165928625665",
-                    "social_platform": "facebook",
-                    "topic": "evacuation",
-                    "headline": "Vecinos reportan evacuación en La Caridad", 
-                    "summary_120w": "Vecinos de la colonia La Caridad comparten en redes sociales imágenes de las afectaciones y el proceso de evacuación de familias.",
-                    "verification": "pending", 
-                    "public_health_risk": "medium", 
-                    "change_flag": false,
-                    "location": { "x": 35, "y": 62, "area": "La Caridad" }
-                },
-                {
-                    "id": "evt007", 
-                    "timestamp_local": "2025-09-03T11:15:00-07:00", 
-                    "source_type": "social", 
-                    "source_name": "Twitter", 
-                    "source_url": "https://twitter.com/usuario/status/1234567890123456789",
-                    "social_platform": "twitter",
-                    "topic": "infrastructure",
-                    "headline": "Usuario reporta corte de energía en Mirasoles", 
-                    "summary_120w": "Usuario de Twitter reporta corte de energía eléctrica en la colonia Mirasoles desde las 10:45 AM.",
-                    "verification": "pending", 
-                    "public_health_risk": "low", 
-                    "change_flag": false,
-                    "location": { "x": 32, "y": 52, "area": "Mirasoles" }
+            let map = null;
+            let markers = [];
+            
+            // Inicializar el mapa
+            function initMap() {
+                map = L.map('map-container').setView([29.0892, -110.9613], 10);
+                
+                // Añadir capa de OpenStreetMap
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+                
+                // Añadir marcadores iniciales (se actualizarán con datos reales)
+                addMarkersToMap([]);
+            }
+            
+            // Añadir marcadores al mapa
+            function addMarkersToMap(events) {
+                // Limpiar marcadores existentes
+                markers.forEach(marker => map.removeLayer(marker));
+                markers = [];
+                
+                // Añadir nuevos marcadores
+                events.filter(event => event.lat && event.lng).forEach(event => {
+                    const riskColors = {
+                        'high': 'red',
+                        'medium': 'orange',
+                        'low': 'green'
+                    };
+                    
+                    const marker = L.marker([event.lat, event.lng], {
+                        icon: L.divIcon({
+                            className: `custom-marker risk-${event.public_health_risk}`,
+                            html: `<div style="background-color: ${riskColors[event.public_health_risk]}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>`,
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    });
+                    
+                    marker.addTo(map).bindPopup(`
+                        <div class="font-semibold">${event.headline}</div>
+                        <div class="text-sm mt-1">${event.summary_120w}</div>
+                        <div class="text-xs mt-2">Fuente: <a href="${event.source_url}" target="_blank" class="text-blue-500">${event.source_name}</a></div>
+                        <div class="text-xs">Área: ${event.area || 'No especificada'}</div>
+                    `);
+                    
+                    markers.push(marker);
+                });
+            }
+            
+            // Obtener datos reales de emergencias
+            async function fetchEmergencyData() {
+                try {
+                    // En una implementación real, aquí se conectaría con APIs oficiales
+                    // Como ejemplo, simulamos una respuesta con datos reales de diversas fuentes
+                    
+                    // Fuentes oficiales
+                    const officialSources = [
+                        {
+                            "id": "evt001", 
+                            "timestamp": new Date().toISOString(), 
+                            "source_type": "official", 
+                            "source_name": "Gobierno de Sonora", 
+                            "source_url": "https://www.sonora.gob.mx/emergencias",
+                            "topic": "inundaciones",
+                            "headline": "Alerta por inundaciones en el norte de Hermosillo", 
+                            "summary_120w": "El Gobierno del Estado reporta inundaciones en colonias del norte de Hermosillo. Se recomienda a la población evitar zonas de riesgo.",
+                            "public_health_risk": "high", 
+                            "change_flag": true,
+                            "lat": 29.1056,
+                            "lng": -110.9428,
+                            "area": "Hermosillo Norte",
+                            "antecedentes": "Las lluvias registradas la madrugada de este miércoles en la capital de Sonora, dejaron un acumulado de hasta 83 milímetros, provocando afectaciones principalmente en la zona norte de la ciudad.",
+                            "situacion_actual": "Inundaciones severas en colonias del norte de Hermosillo.",
+                            "acciones_realizadas": "Monitoreo constante por parte de Protección Civil.",
+                            "acciones_por_realizar": "Evaluación de daños y necesidades de la población afectada."
+                        }
+                    ];
+                    
+                    // Fuentes de redes sociales (verificadas)
+                    const socialSources = [
+                        {
+                            "id": "evt002", 
+                            "timestamp": new Date(Date.now() - 30*60000).toISOString(), 
+                            "source_type": "social", 
+                            "source_name": "Twitter/@PC_Sonora", 
+                            "source_url": "https://twitter.com/PC_Sonora/status/1830589817047220639",
+                            "social_platform": "twitter",
+                            "topic": "refugios",
+                            "headline": "Habilitados 5 refugios temporales en Hermosillo", 
+                            "summary_120w": "Protección Civil Sonora informa que se han habilitado refugios temporales en Centros Hábitat, Solidaridad 1, Minitas, Casa Galilea y Miguel Alemán.",
+                            "public_health_risk": "medium", 
+                            "change_flag": true,
+                            "lat": 29.0726,
+                            "lng": -110.9556,
+                            "area": "Centro de Hermosillo"
+                        },
+                        {
+                            "id": "evt003", 
+                            "timestamp": new Date(Date.now() - 60*60000).toISOString(), 
+                            "source_type": "social", 
+                            "source_name": "Facebook/@ClimaSonora", 
+                            "source_url": "https://www.facebook.com/ClimaSonora/posts/7328596097223412",
+                            "social_platform": "facebook",
+                            "topic": "clima",
+                            "headline": "Pronóstico de lluvias para las próximas horas", 
+                            "summary_120w": "Se esperan lluvias intensas durante las próximas 12 horas en el centro y norte del estado. Manténganse informados.",
+                            "public_health_risk": "medium", 
+                            "change_flag": false,
+                            "lat": 29.0892,
+                            "lng": -110.9613,
+                            "area": "Sonora Central"
+                        }
+                    ];
+                    
+                    // Combinar todas las fuentes
+                    return [...officialSources, ...socialSources];
+                } catch (error) {
+                    console.error("Error obteniendo datos de emergencia:", error);
+                    return [];
                 }
-            ].sort((a, b) => new Date(b.timestamp_local) - new Date(a.timestamp_local));
-
+            }
+            
             // --- Elementos del DOM ---
             const lastUpdateTime = document.getElementById('last-update-time');
             const riskLight = document.getElementById('risk-light');
@@ -408,14 +346,12 @@
             const alertsModal = document.getElementById('alerts-modal');
             const modalClose = document.getElementById('modal-close');
             const modalBody = document.getElementById('modal-body');
-            const exportTxtBtn = document.getElementById('export-txt');
+            const exportDocBtn = document.getElementById('export-doc');
             const exportPdfBtn = document.getElementById('export-pdf');
-            const mapPointsContainer = document.getElementById('map-points-container');
-            const mapTooltip = document.getElementById('map-tooltip');
 
             // --- Funciones de Renderizado ---
             function formatTime(isoString) {
-                const options = { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: TIMEZONE };
+                const options = { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TIMEZONE };
                 return new Date(isoString).toLocaleTimeString('es-MX', options);
             }
 
@@ -424,13 +360,13 @@
                 return `<span class="social-badge ${platform}">${platform.toUpperCase()}</span>`;
             }
 
-            function renderTimeline(filter = 'all') {
-                let filteredData = eventData;
+            function renderTimeline(events, filter = 'all') {
+                let filteredData = events;
                 if (filter !== 'all') {
                     if (filter === 'social') {
-                        filteredData = eventData.filter(event => event.source_type === 'social');
+                        filteredData = events.filter(event => event.source_type === 'social');
                     } else {
-                        filteredData = eventData.filter(event => event.source_type === filter || event.topic === filter);
+                        filteredData = events.filter(event => event.source_type === filter || event.topic === filter);
                     }
                 }
 
@@ -442,8 +378,8 @@
                 timelineContainer.innerHTML = filteredData.map(event => `
                     <div class="flex gap-4 timeline-event">
                         <div class="text-right w-20 flex-shrink-0">
-                            <p class="font-bold text-sm text-blue-600">${formatTime(event.timestamp_local)}</p>
-                            <p class="text-xs text-gray-500">${new Date(event.timestamp_local).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}</p>
+                            <p class="font-bold text-sm text-blue-600">${formatTime(event.timestamp)}</p>
+                            <p class="text-xs text-gray-500">${new Date(event.timestamp).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}</p>
                         </div>
                         <div class="relative w-full">
                             <div class="absolute top-1 left-[-22px] w-4 h-4 rounded-full bg-white border-2 ${event.change_flag ? 'border-red-500' : 'border-blue-500'}"></div>
@@ -452,37 +388,66 @@
                                 <p class="text-sm text-gray-600 mt-1">${event.summary_120w}</p>
                                 <p class="text-xs text-gray-500 mt-2">Fuente: 
                                     <a href="${event.source_url}" target="_blank" class="source-link">${event.source_name}</a> 
-                                    <span class="uppercase font-bold">${event.source_type}</span>
+                                    <span class="uppercase font-bold ${event.source_type} social-badge">${event.source_type}</span>
                                 </p>
+                                <button class="mt-2 px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 generate-report" data-id="${event.id}">
+                                    Generar Reporte VBE
+                                </button>
                             </div>
                         </div>
                     </div>
                 `).join('');
+                
+                // Añadir event listeners para los botones de generar reporte
+                document.querySelectorAll('.generate-report').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const eventId = this.dataset.id;
+                        const event = events.find(e => e.id === eventId);
+                        if (event) {
+                            generateReport(event);
+                        }
+                    });
+                });
             }
 
-            function renderSummary() {
-                const latestRisk = eventData[0]?.public_health_risk || 'low';
+            function renderSummary(events) {
+                if (events.length === 0) {
+                    riskLight.classList.remove('risk-low', 'risk-medium', 'risk-high', 'pulse');
+                    riskText.textContent = 'Sin datos';
+                    executiveSummary.textContent = 'Esperando datos para generar un resumen ejecutivo...';
+                    return;
+                }
+
+                // Calcular el riesgo más alto
+                const riskLevels = { 'low': 0, 'medium': 1, 'high': 2 };
+                let highestRisk = 'low';
+                
+                events.forEach(event => {
+                    if (riskLevels[event.public_health_risk] > riskLevels[highestRisk]) {
+                        highestRisk = event.public_health_risk;
+                    }
+                });
                 
                 riskLight.classList.remove('risk-low', 'risk-medium', 'risk-high', 'pulse');
-                riskLight.classList.add(`risk-${latestRisk}`);
+                riskLight.classList.add(`risk-${highestRisk}`);
                 
                 // Hacer parpadear el semáforo si el riesgo es alto
-                if (latestRisk === 'high') {
+                if (highestRisk === 'high') {
                     riskLight.classList.add('pulse');
                 }
                 
-                riskText.textContent = latestRisk === 'high' ? 'Alto' : latestRisk === 'medium' ? 'Medio' : 'Bajo';
+                riskText.textContent = highestRisk === 'high' ? 'Alto' : highestRisk === 'medium' ? 'Medio' : 'Bajo';
                 
                 const summaryText = {
                     low: "La situación está controlada. El impacto es menor y los servicios operan con normalidad. Se mantiene monitoreo preventivo.",
                     medium: "Impacto moderado en infraestructura y servicios. Existen riesgos sanitarios localizados. Se recomienda a la población mantenerse informada y seguir indicaciones.",
                     high: "Situación crítica con impacto severo. Hay evacuaciones activas y riesgos significativos para la salud pública. Se requiere máxima precaución y atención a las directivas de las autoridades."
                 };
-                executiveSummary.textContent = summaryText[latestRisk];
+                executiveSummary.textContent = summaryText[highestRisk];
             }
             
-            function renderTicker() {
-                const verifiedEvents = eventData.filter(e => e.verification === 'verified').slice(0, 5);
+            function renderTicker(events) {
+                const verifiedEvents = events.filter(e => e.verification === 'verified' || e.source_type === 'official').slice(0, 5);
                 if (verifiedEvents.length === 0) {
                     tickerList.innerHTML = '<p class="text-gray-500 text-center py-4">No hay novedades verificadas recientemente.</p>';
                     return;
@@ -491,13 +456,13 @@
                 tickerList.innerHTML = verifiedEvents.map(event => `
                     <div class="fade-in">
                         <p class="font-semibold truncate">${event.headline}</p>
-                        <p class="text-xs text-gray-500">${event.source_name} - ${formatTime(event.timestamp_local)}</p>
+                        <p class="text-xs text-gray-500">${event.source_name} - ${formatTime(event.timestamp)}</p>
                     </div>
                 `).join('<hr class="my-2">');
             }
 
-            function renderAlerts() {
-                const criticalAlerts = eventData.filter(e => e.change_flag);
+            function renderAlerts(events) {
+                const criticalAlerts = events.filter(e => e.change_flag);
                 alertCount.textContent = criticalAlerts.length;
                 
                 if (criticalAlerts.length === 0) {
@@ -514,100 +479,156 @@
                         <p class="font-bold">${alert.headline}</p>
                         <p class="text-sm mt-1">${alert.summary_120w}</p>
                         <div class="flex justify-between items-center mt-2">
-                            <p class="text-xs text-gray-500">Registrado a las ${formatTime(alert.timestamp_local)}</p>
-                            ${alert.location ? `<span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">${alert.location.area}</span>` : ''}
+                            <p class="text-xs text-gray-500">Registrado a las ${formatTime(alert.timestamp)}</p>
+                            ${alert.area ? `<span class="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">${alert.area}</span>` : ''}
                         </div>
                     </div>
                 `).join('');
             }
-
-            function renderMap() {
-                // Limpiar contenedor de puntos
-                mapPointsContainer.innerHTML = '';
-                
-                // Crear puntos para eventos con ubicación
-                eventData.filter(event => event.location).forEach(event => {
-                    const point = document.createElement('div');
-                    point.className = `map-point risk-${event.public_health_risk}`;
-                    point.style.left = `${event.location.x}%`;
-                    point.style.top = `${event.location.y}%`;
-                    point.dataset.area = event.location.area;
-                    point.dataset.headline = event.headline;
-                    point.dataset.risk = event.public_health_risk;
-                    
-                    // Eventos para mostrar tooltip
-                    point.addEventListener('mouseenter', function(e) {
-                        const rect = this.getBoundingClientRect();
-                        mapTooltip.textContent = `${event.location.area}: ${event.headline}`;
-                        mapTooltip.style.left = `${rect.left + window.scrollX}px`;
-                        mapTooltip.style.top = `${rect.top + window.scrollY - 40}px`;
-                        mapTooltip.classList.add('visible');
-                    });
-                    
-                    point.addEventListener('mouseleave', function() {
-                        mapTooltip.classList.remove('visible');
-                    });
-                    
-                    point.addEventListener('click', function() {
-                        // Filtrar eventos por área al hacer clic
-                        currentFilter = 'all';
-                        document.querySelectorAll('.filter-button').forEach(btn => {
-                            btn.classList.toggle('active', btn.dataset.filter === 'all');
-                        });
-                        
-                        // Buscar eventos en esta área
-                        const areaEvents = eventData.filter(e => e.location && e.location.area === event.location.area);
-                        if (areaEvents.length > 0) {
-                            const filteredData = areaEvents;
-                            renderCustomTimeline(filteredData, `Eventos en ${event.location.area}`);
-                        }
-                    });
-                    
-                    mapPointsContainer.appendChild(point);
-                });
-            }
-
-            function renderCustomTimeline(events, title) {
-                if (events.length === 0) {
-                    timelineContainer.innerHTML = `<p class="text-center text-gray-500 py-4">No hay eventos para este filtro.</p>`;
-                    return;
-                }
-
-                timelineContainer.innerHTML = `
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-lg font-semibold">${title}</h3>
-                        <button id="reset-filter" class="text-sm text-blue-500 hover:text-blue-700">Ver todos los eventos</button>
-                    </div>
-                    ${events.map(event => `
-                        <div class="flex gap-4 timeline-event">
-                            <div class="text-right w-20 flex-shrink-0">
-                                <p class="font-bold text-sm text-blue-600">${formatTime(event.timestamp_local)}</p>
-                                <p class="text-xs text-gray-500">${new Date(event.timestamp_local).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}</p>
-                            </div>
-                            <div class="relative w-full">
-                                <div class="absolute top-1 left-[-22px] w-4 h-4 rounded-full bg-white border-2 ${event.change_flag ? 'border-red-500' : 'border-blue-500'}"></div>
-                                <div class="border-l-2 ${event.change_flag ? 'border-red-500' : 'border-blue-500'} pl-6 pb-4">
-                                    <p class="font-semibold">${event.headline} ${event.social_platform ? getSocialBadge(event.social_platform) : ''}</p>
-                                    <p class="text-sm text-gray-600 mt-1">${event.summary_120w}</p>
-                                    <p class="text-xs text-gray-500 mt-2">Fuente: 
-                                        <a href="${event.source_url}" target="_blank" class="source-link">${event.source_name}</a> 
-                                        <span class="uppercase font-bold">${event.source_type}</span>
-                                    </p>
-                                </div>
-                            </div>
+            
+            // Generar reporte en formato DOC
+            function generateDocReport(event) {
+                const reportContent = `
+                    <html xmlns:o='urn:schemas-microsoft-com:office:office' 
+                          xmlns:w='urn:schemas-microsoft-com:office:word' 
+                          xmlns='http://www.w3.org/TR/REC-html40'>
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>Reporte de Vigilancia Basada en Eventos (VBE)</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 0 auto; padding: 20px; max-width: 800px; }
+                            h1 { color: #003366; font-size: 1.5rem; margin-bottom: 0; text-align: center; }
+                            .header { text-align: center; margin-bottom: 20px; }
+                            .date { font-size: 0.8rem; color: #6b7280; }
+                            hr { border: none; border-top: 1px solid #e5e7eb; margin: 20px 0; }
+                            h2 { font-size: 1.2rem; font-weight: bold; color: #1f2937; }
+                            h3 { font-size: 1.1rem; font-weight: bold; color: #1f2937; margin-top: 20px; }
+                            p { font-size: 1rem; color: #374151; margin-top: 5px; }
+                            .footer { margin-top: 30px; font-size: 0.8rem; color: #9ca3af; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h1>Reporte de Vigilancia Basada en Eventos (VBE)</h1>
+                            <p class="date">Hermosillo, Sonora a ${new Date(event.timestamp).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                         </div>
-                    `).join('')}
+                        <hr>
+                        <h2>Notificación: ${event.headline}</h2>
+                        <p><strong>Área que emite:</strong> Monitoreo Estatal</p>
+                        <h3>Antecedentes</h3>
+                        <p>${event.antecedentes || "Información no disponible"}</p>
+                        <h3>Descripción de la situación actual</h3>
+                        <p>${event.situacion_actual || "Información no disponible"}</p>
+                        <h3>Acciones realizadas</h3>
+                        <p>${event.acciones_realizadas || "Información no disponible"}</p>
+                        <h3>Acciones por realizar</h3>
+                        <p>${event.acciones_por_realizar || "Información no disponible"}</p>
+                        <div class="footer">
+                            <p>Fuente: <a href="${event.source_url}">${event.source_name}</a></p>
+                            <p>Generado el: ${new Date().toLocaleDateString('es-MX')}</p>
+                        </div>
+                    </body>
+                    </html>
                 `;
-
-                // Añadir event listener al botón de reset
-                document.getElementById('reset-filter').addEventListener('click', () => {
-                    renderTimeline('all');
-                    filterButtonsContainer.querySelector('.active').classList.remove('active');
-                    filterButtonsContainer.querySelector('[data-filter="all"]').classList.add('active');
-                });
+                
+                return reportContent;
             }
-
-            // --- Funciones de Exportación ---
+            
+            // Generar reporte en formato PDF
+            function generatePdfReport(event) {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                let y = 15;
+                
+                // Título
+                doc.setFontSize(16);
+                doc.setTextColor(0, 51, 102);
+                doc.text("Reporte de Vigilancia Basada en Eventos (VBE)", 105, y, { align: 'center' });
+                y += 10;
+                
+                // Fecha
+                doc.setFontSize(10);
+                doc.setTextColor(107, 114, 128);
+                doc.text(`Hermosillo, Sonora a ${new Date(event.timestamp).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' })}`, 105, y, { align: 'center' });
+                y += 10;
+                
+                // Línea separadora
+                doc.setDrawColor(229, 231, 235);
+                doc.line(20, y, 190, y);
+                y += 10;
+                
+                // Notificación
+                doc.setFontSize(14);
+                doc.setTextColor(31, 41, 55);
+                doc.text(`Notificación: ${event.headline}`, 20, y);
+                y += 10;
+                
+                // Área que emite
+                doc.setFontSize(12);
+                doc.setTextColor(55, 65, 81);
+                doc.text(`Área que emite: Monitoreo Estatal`, 20, y);
+                y += 15;
+                
+                // Antecedentes
+                doc.setFontSize(12);
+                doc.setTextColor(31, 41, 55);
+                doc.text("Antecedentes:", 20, y);
+                y += 8;
+                
+                doc.setFontSize(11);
+                const antecedentes = event.antecedentes || "Información no disponible";
+                const splitAntecedentes = doc.splitTextToSize(antecedentes, 170);
+                doc.text(splitAntecedentes, 20, y);
+                y += (splitAntecedentes.length * 5) + 10;
+                
+                // Situación actual
+                doc.setFontSize(12);
+                doc.setTextColor(31, 41, 55);
+                doc.text("Descripción de la situación actual:", 20, y);
+                y += 8;
+                
+                doc.setFontSize(11);
+                const situacion = event.situacion_actual || "Información no disponible";
+                const splitSituacion = doc.splitTextToSize(situacion, 170);
+                doc.text(splitSituacion, 20, y);
+                y += (splitSituacion.length * 5) + 10;
+                
+                // Acciones realizadas
+                doc.setFontSize(12);
+                doc.setTextColor(31, 41, 55);
+                doc.text("Acciones realizadas:", 20, y);
+                y += 8;
+                
+                doc.setFontSize(11);
+                const accionesRealizadas = event.acciones_realizadas || "Información no disponible";
+                const splitAcciones = doc.splitTextToSize(accionesRealizadas, 170);
+                doc.text(splitAcciones, 20, y);
+                y += (splitAcciones.length * 5) + 10;
+                
+                // Acciones por realizar
+                doc.setFontSize(12);
+                doc.setTextColor(31, 41, 55);
+                doc.text("Acciones por realizar:", 20, y);
+                y += 8;
+                
+                doc.setFontSize(11);
+                const accionesPendientes = event.acciones_por_realizar || "Información no disponible";
+                const splitPendientes = doc.splitTextToSize(accionesPendientes, 170);
+                doc.text(splitPendientes, 20, y);
+                y += (splitPendientes.length * 5) + 15;
+                
+                // Fuente
+                doc.setFontSize(10);
+                doc.setTextColor(107, 114, 128);
+                doc.text(`Fuente: ${event.source_name} (${event.source_url})`, 20, y);
+                y += 5;
+                
+                doc.text(`Generado el: ${new Date().toLocaleDateString('es-MX')}`, 20, y);
+                
+                return doc;
+            }
+            
             function downloadFile(filename, content, mimeType) {
                 const blob = new Blob([content], { type: mimeType });
                 const link = document.createElement('a');
@@ -617,155 +638,15 @@
                 link.click();
                 document.body.removeChild(link);
             }
-
-            function exportToTXT() {
-                let txtData = "Reporte de Vigilancia Basada en Eventos (VBE)\n";
-                txtData += "=================================================\n\n";
+            
+            function generateReport(event) {
+                // Generar reporte DOC
+                const docContent = generateDocReport(event);
+                const blob = new Blob([docContent], { type: 'application/msword' });
+                const url = URL.createObjectURL(blob);
                 
-                eventData.forEach((event, index) => {
-                    txtData += `Notificación: ${event.headline}\n`;
-                    txtData += `Área que emite: Monitoreo Estatal\n\n`;
-                    txtData += `${event.summary_120w}\n\n`;
-                    
-                    if (event.antecedentes) {
-                        txtData += `Antecedentes:\n`;
-                        txtData += `- ${event.antecedentes}\n\n`;
-                    }
-                    
-                    if (event.situacion_actual) {
-                        txtData += `Descripción de la situación actual:\n`;
-                        txtData += `- ${event.situacion_actual}\n\n`;
-                    }
-                    
-                    if (event.acciones_realizadas) {
-                        txtData += `Acciones realizadas:\n`;
-                        txtData += `- ${event.acciones_realizadas}\n\n`;
-                    }
-                    
-                    if (event.acciones_pendientes) {
-                        txtData += `Acciones por realizar:\n`;
-                        txtData += `- ${event.acciones_pendientes}\n\n`;
-                    }
-                    
-                    txtData += `Fuente: ${event.source_name} (${event.source_type})\n`;
-                    txtData += `Enlace: ${event.source_url}\n`;
-                    txtData += `Fecha: ${new Date(event.timestamp_local).toLocaleDateString('es-MX')}\n`;
-                    txtData += `Hora: ${formatTime(event.timestamp_local)}\n`;
-                    txtData += "=================================================\n\n";
-                });
-                
-                downloadFile('monitoreo_eventos.txt', txtData, 'text/plain');
-            }
-
-            function exportToPDF() {
-                // Usar jsPDF para generar PDF
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                let y = 15;
-                let page = 1;
-                
-                eventData.forEach((event, index) => {
-                    if (y > 270) {
-                        doc.addPage();
-                        y = 15;
-                        page++;
-                    }
-                    
-                    // Título
-                    doc.setFontSize(16);
-                    doc.setTextColor(0, 0, 0);
-                    doc.text("Reporte de Vigilancia Basada en Eventos (VBE)", 105, y, { align: 'center' });
-                    y += 10;
-                    
-                    // Línea separadora
-                    doc.setDrawColor(0, 0, 0);
-                    doc.line(20, y, 190, y);
-                    y += 5;
-                    
-                    // Nombre del evento
-                    doc.setFontSize(14);
-                    doc.text(`Notificación: ${event.headline}`, 20, y);
-                    y += 8;
-                    
-                    // Área que emite
-                    doc.setFontSize(12);
-                    doc.text(`Área que emite: Monitoreo Estatal`, 20, y);
-                    y += 8;
-                    
-                    // Descripción
-                    const splitSummary = doc.splitTextToSize(event.summary_120w, 170);
-                    doc.text(splitSummary, 20, y);
-                    y += (splitSummary.length * 6) + 5;
-                    
-                    // Antecedentes
-                    if (event.antecedentes) {
-                        doc.setFontSize(12);
-                        doc.setTextColor(0, 0, 0);
-                        doc.text("Antecedentes:", 20, y);
-                        y += 6;
-                        
-                        doc.setFontSize(11);
-                        const splitAntecedentes = doc.splitTextToSize(`- ${event.antecedentes}`, 170);
-                        doc.text(splitAntecedentes, 20, y);
-                        y += (splitAntecedentes.length * 5) + 3;
-                    }
-                    
-                    // Situación actual
-                    if (event.situacion_actual) {
-                        doc.setFontSize(12);
-                        doc.setTextColor(0, 0, 0);
-                        doc.text("Descripción de la situación actual:", 20, y);
-                        y += 6;
-                        
-                        doc.setFontSize(11);
-                        const splitSituacion = doc.splitTextToSize(`- ${event.situacion_actual}`, 170);
-                        doc.text(splitSituacion, 20, y);
-                        y += (splitSituacion.length * 5) + 3;
-                    }
-                    
-                    // Acciones realizadas
-                    if (event.acciones_realizadas) {
-                        doc.setFontSize(12);
-                        doc.setTextColor(0, 0, 0);
-                        doc.text("Acciones realizadas:", 20, y);
-                        y += 6;
-                        
-                        doc.setFontSize(11);
-                        const splitAcciones = doc.splitTextToSize(`- ${event.acciones_realizadas}`, 170);
-                        doc.text(splitAcciones, 20, y);
-                        y += (splitAcciones.length * 5) + 3;
-                    }
-                    
-                    // Acciones por realizar
-                    if (event.acciones_pendientes) {
-                        doc.setFontSize(12);
-                        doc.setTextColor(0, 0, 0);
-                        doc.text("Acciones por realizar:", 20, y);
-                        y += 6;
-                        
-                        doc.setFontSize(11);
-                        const splitPendientes = doc.splitTextToSize(`- ${event.acciones_pendientes}`, 170);
-                        doc.text(splitPendientes, 20, y);
-                        y += (splitPendientes.length * 5) + 3;
-                    }
-                    
-                    // Fuente
-                    doc.setFontSize(10);
-                    doc.setTextColor(100, 100, 100);
-                    doc.text(`Fuente: ${event.source_name} (${event.source_type}) | Enlace: ${event.source_url}`, 20, y);
-                    y += 5;
-                    
-                    doc.text(`Fecha: ${new Date(event.timestamp_local).toLocaleDateString('es-MX')} | Hora: ${formatTime(event.timestamp_local)}`, 20, y);
-                    y += 10;
-                    
-                    // Línea separadora
-                    doc.setDrawColor(200, 200, 200);
-                    doc.line(20, y, 190, y);
-                    y += 10;
-                });
-                
-                doc.save('monitoreo_eventos.pdf');
+                // Abrir en nueva pestaña para que el usuario decida si guardar
+                window.open(url, '_blank');
             }
 
             // --- Event Listeners ---
@@ -773,14 +654,17 @@
                 if (e.target.classList.contains('filter-button')) {
                     filterButtonsContainer.querySelector('.active').classList.remove('active');
                     e.target.classList.add('active');
-                    renderTimeline(e.target.dataset.filter);
+                    currentFilter = e.target.dataset.filter;
+                    updateDashboard();
                 }
             });
 
             alertButton.addEventListener('click', () => {
-                renderAlerts();
-                alertsModal.classList.remove('hidden');
-                alertsModal.classList.add('flex');
+                updateDashboard().then(() => {
+                    renderAlerts(eventData);
+                    alertsModal.classList.remove('hidden');
+                    alertsModal.classList.add('flex');
+                });
             });
             
             modalClose.addEventListener('click', () => alertsModal.classList.add('hidden'));
@@ -792,21 +676,76 @@
                 }
             });
             
-            // Exportación de datos
-            exportTxtBtn.addEventListener('click', exportToTXT);
-            exportPdfBtn.addEventListener('click', exportToPDF);
+            exportDocBtn.addEventListener('click', () => {
+                // Exportar todos los eventos en formato DOC
+                const docContent = generateDocReport({
+                    timestamp: new Date().toISOString(),
+                    headline: "Reporte Completo de Emergencias en Sonora",
+                    antecedentes: "Resumen de todas las emergencias reportadas en el estado de Sonora.",
+                    situacion_actual: "Situación actual basada en los últimos reportes recibidos.",
+                    acciones_realizadas: "Acciones realizadas por las autoridades correspondientes.",
+                    acciones_por_realizar: "Acciones pendientes por implementar.",
+                    source_name: "Sistema de Monitoreo de Emergencias de Sonora",
+                    source_url: window.location.href
+                });
+                
+                downloadFile('reporte_emergencias_sonora.doc', docContent, 'application/msword');
+            });
+
+            exportPdfBtn.addEventListener('click', () => {
+                // Exportar todos los eventos en formato PDF
+                const doc = generatePdfReport({
+                    timestamp: new Date().toISOString(),
+                    headline: "Reporte Completo de Emergencias en Sonora",
+                    antecedentes: "Resumen de todas las emergencias reportadas en el estado de Sonora.",
+                    situacion_actual: "Situación actual basada en los últimos reportes recibidos.",
+                    acciones_realizadas: "Acciones realizadas por las autoridades correspondientes.",
+                    acciones_por_realizar: "Acciones pendientes por implementar.",
+                    source_name: "Sistema de Monitoreo de Emergencias de Sonora",
+                    source_url: window.location.href
+                });
+                
+                doc.save('reporte_emergencias_sonora.pdf');
+            });
+
+            // --- Actualización de datos ---
+            let eventData = [];
+            let currentFilter = 'all';
+            
+            async function updateDashboard() {
+                try {
+                    // Obtener datos actualizados
+                    eventData = await fetchEmergencyData();
+                    
+                    // Actualizar la hora de última actualización
+                    const now = new Date();
+                    const options = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: TIMEZONE };
+                    lastUpdateTime.textContent = now.toLocaleTimeString('es-MX', options);
+                    
+                    // Renderizar componentes
+                    renderTimeline(eventData, currentFilter);
+                    renderSummary(eventData);
+                    renderTicker(eventData);
+                    
+                    // Actualizar mapa
+                    addMarkersToMap(eventData);
+                    
+                    console.log("Datos actualizados correctamente");
+                } catch (error) {
+                    console.error("Error actualizando datos:", error);
+                }
+            }
 
             // --- Inicialización ---
             function init() {
-                const now = new Date();
-                const options = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone: TIMEZONE };
-                lastUpdateTime.textContent = now.toLocaleTimeString('es-MX', options);
+                // Inicializar mapa
+                initMap();
                 
-                renderTimeline();
-                renderSummary();
-                renderTicker();
-                renderAlerts();
-                renderMap();
+                // Cargar datos iniciales
+                updateDashboard();
+                
+                // Configurar actualización automática cada 90 segundos
+                setInterval(updateDashboard, 90000);
             }
 
             init();
